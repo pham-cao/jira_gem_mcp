@@ -11,6 +11,8 @@ MCP server (stdio) cho **Jira Server 8.x** đăng nhập bằng username/passwor
 
 ## Cài đặt
 
+> Hướng dẫn chi tiết cho Claude Code, Claude Desktop, VS Code, Cursor, kèm ví dụ prompt và bảng xử lý sự cố: **[docs/integration.md](docs/integration.md)**.
+
 ### Cách A — chạy qua `npx` từ git
 
 Thêm vào `.mcp.json` của project hoặc `~/.claude.json`:
