@@ -1,8 +1,9 @@
 import { http, HttpResponse } from "msw";
 import { describe, expect, it } from "vitest";
+import { HttpError } from "../src/http/errors.js";
 import { JiraError } from "../src/jira/errors.js";
-import { createServer, startupChecks } from "../src/server.js";
-import { AGILE, API, connectServer, makeClient, mswServer, useMsw } from "./helpers.js";
+import { checkConfluence, createServer, startupChecks } from "../src/server.js";
+import { AGILE, API, CAPI, connectServer, makeClient, makeConfluenceClient, mswServer, useMsw } from "./helpers.js";
 
 useMsw();
 
@@ -32,6 +33,17 @@ const WRITE = [
 ];
 const AGILE_READ = ["jira_get_sprint_issues", "jira_list_boards", "jira_list_sprints"];
 const AGILE_WRITE = ["jira_create_sprint", "jira_move_issues_to_sprint", "jira_update_sprint"];
+const CONF_READ = [
+  "confluence_download_attachment",
+  "confluence_get_comments",
+  "confluence_get_labels",
+  "confluence_get_page",
+  "confluence_get_page_children",
+  "confluence_list_attachments",
+  "confluence_list_spaces",
+  "confluence_search",
+];
+const CONF_WRITE = ["confluence_add_comment", "confluence_add_labels", "confluence_create_page", "confluence_update_page", "confluence_upload_attachment"];
 const sorted = (...xs: string[][]) => xs.flat().sort();
 
 describe("startupChecks", () => {
@@ -83,5 +95,43 @@ describe("createServer", () => {
 
   it("omits agile tools when agile is off", async () => {
     expect(await names({ readOnly: false, agile: false })).toEqual(sorted(READ, WRITE));
+  });
+});
+
+describe("createServer with Confluence", () => {
+  const names = async (readOnly: boolean) =>
+    (await connectServer(createServer(makeClient(), { readOnly, agile: true, confluence: makeConfluenceClient() }))).toolNames();
+
+  it("registers all 39 tools", async () => {
+    const all = await names(false);
+    expect(all).toEqual(sorted(READ, WRITE, AGILE_READ, AGILE_WRITE, CONF_READ, CONF_WRITE));
+    expect(all).toHaveLength(39);
+  });
+
+  it("registers 22 read tools in read-only mode", async () => {
+    const r = await names(true);
+    expect(r).toEqual(sorted(READ, AGILE_READ, CONF_READ));
+    expect(r).toHaveLength(22);
+  });
+});
+
+describe("checkConfluence", () => {
+  it("returns the username for a known user", async () => {
+    mswServer.use(http.get(`${CAPI}/user/current`, () => HttpResponse.json({ type: "known", username: "alice" })));
+    expect(await checkConfluence(makeConfluenceClient())).toEqual({ name: "alice" });
+  });
+
+  it("rejects for an anonymous session", async () => {
+    mswServer.use(http.get(`${CAPI}/user/current`, () => HttpResponse.json({ type: "anonymous" })));
+    await expect(checkConfluence(makeConfluenceClient())).rejects.toThrow(
+      "Đăng nhập Confluence thất bại (sai username/password hoặc tài khoản bị khoá/CAPTCHA).",
+    );
+  });
+
+  it("propagates a 401 as HttpError for Confluence", async () => {
+    mswServer.use(http.get(`${CAPI}/user/current`, () => new HttpResponse(null, { status: 401 })));
+    const err = await checkConfluence(makeConfluenceClient()).catch((e) => e);
+    expect(err).toBeInstanceOf(HttpError);
+    expect(err.service).toBe("Confluence");
   });
 });
