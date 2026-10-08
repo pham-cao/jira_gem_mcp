@@ -60,7 +60,7 @@ Mỗi file trong `tools/` export `register(server: McpServer, client: JiraClient
 | `JIRA_USERNAME` | ✓ | — | username Jira |
 | `JIRA_PASSWORD` | ✓ | — | mật khẩu Jira |
 | `JIRA_READ_ONLY` | | `false` | `true` → chỉ đăng ký tool đọc |
-| `JIRA_INSECURE_TLS` | | `false` | `true` → bỏ kiểm tra chứng chỉ TLS (dùng undici `Agent` với `rejectUnauthorized: false`) |
+| `JIRA_INSECURE_TLS` | | `false` | `true` → bỏ kiểm tra chứng chỉ TLS (đặt `NODE_TLS_REJECT_UNAUTHORIZED=0` trong `index.ts` trước mọi request) |
 | `JIRA_TIMEOUT_MS` | | `30000` | timeout mỗi request |
 
 Boolean chấp nhận `true/false/1/0` (không phân biệt hoa thường); giá trị khác → lỗi cấu hình.
