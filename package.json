@@ -16,6 +16,7 @@
     "build": "tsc",
     "prepare": "npm run build",
     "test": "vitest run",
+    "release-check": "npm run build && npm test && git diff --exit-code -- dist",
     "smoke": "tsx --env-file=.env scripts/smoke.ts"
   },
   "dependencies": {

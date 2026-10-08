@@ -1,0 +1,46 @@
+{
+  "name": "gem-jira",
+  "version": "0.1.0",
+  "description": "Jira Server and Confluence tools for GEM, with a logwork workflow",
+  "author": { "name": "pham-cao" },
+  "repository": "https://github.com/pham-cao/jira_gem_mcp",
+  "userConfig": {
+    "jira_base_url": {
+      "type": "string",
+      "title": "Jira URL",
+      "description": "Base URL of the Jira server",
+      "default": "https://pm.gem-corp.tech"
+    },
+    "confluence_base_url": {
+      "type": "string",
+      "title": "Confluence URL",
+      "description": "Base URL of the Confluence server",
+      "default": "https://conf.gem-corp.tech"
+    },
+    "username": {
+      "type": "string",
+      "title": "Username",
+      "description": "Username shared by Jira and Confluence",
+      "required": true
+    },
+    "password": {
+      "type": "string",
+      "title": "Password",
+      "description": "Password (kept in secure storage)",
+      "required": true,
+      "sensitive": true
+    }
+  },
+  "mcpServers": {
+    "jira": {
+      "command": "node",
+      "args": ["${CLAUDE_PLUGIN_ROOT}/dist/index.js"],
+      "env": {
+        "JIRA_BASE_URL": "${user_config.jira_base_url}",
+        "CONFLUENCE_BASE_URL": "${user_config.confluence_base_url}",
+        "JIRA_USERNAME": "${user_config.username}",
+        "JIRA_PASSWORD": "${user_config.password}"
+      }
+    }
+  }
+}

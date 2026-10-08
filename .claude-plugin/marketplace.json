@@ -1,0 +1,12 @@
+{
+  "name": "gem-tools",
+  "owner": { "name": "pham-cao" },
+  "description": "GEM internal Claude Code plugins",
+  "plugins": [
+    {
+      "name": "gem-jira",
+      "source": ".",
+      "description": "Jira Server and Confluence tools for GEM, with a logwork workflow"
+    }
+  ]
+}
