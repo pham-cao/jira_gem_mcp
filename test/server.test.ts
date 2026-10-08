@@ -43,7 +43,7 @@ const CONF_READ = [
   "confluence_list_spaces",
   "confluence_search",
 ];
-const CONF_WRITE = ["confluence_add_comment", "confluence_add_labels", "confluence_create_page", "confluence_update_page", "confluence_upload_attachment"];
+const CONF_WRITE = ["confluence_add_comment", "confluence_add_labels", "confluence_create_page", "confluence_fill_daily", "confluence_update_page", "confluence_upload_attachment"];
 const sorted = (...xs: string[][]) => xs.flat().sort();
 
 describe("startupChecks", () => {
@@ -102,10 +102,10 @@ describe("createServer with Confluence", () => {
   const names = async (readOnly: boolean) =>
     (await connectServer(createServer(makeClient(), { readOnly, agile: true, confluence: makeConfluenceClient() }))).toolNames();
 
-  it("registers all 39 tools", async () => {
+  it("registers all 40 tools", async () => {
     const all = await names(false);
     expect(all).toEqual(sorted(READ, WRITE, AGILE_READ, AGILE_WRITE, CONF_READ, CONF_WRITE));
-    expect(all).toHaveLength(39);
+    expect(all).toHaveLength(40);
   });
 
   it("registers 22 read tools in read-only mode", async () => {
