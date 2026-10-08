@@ -5,6 +5,7 @@ Tài liệu này hướng dẫn kết nối `jira-server-mcp` với các MCP cli
 - [1. Yêu cầu](#1-yêu-cầu)
 - [2. Chọn cách chạy server](#2-chọn-cách-chạy-server)
 - [3. Claude Code](#3-claude-code)
+  - [3.4 Cài dưới dạng plugin (khuyến nghị)](#34-cài-dưới-dạng-plugin-khuyến-nghị)
 - [4. Claude Desktop](#4-claude-desktop)
 - [5. VS Code (GitHub Copilot agent mode)](#5-vs-code-github-copilot-agent-mode)
 - [6. Cursor](#6-cursor)
@@ -133,6 +134,30 @@ Lần đầu mở project, Claude Code sẽ hỏi có tin tưởng server trong 
 ### 3.3 Sửa file cấu hình trực tiếp
 
 Scope `user` và `local` được lưu trong `~/.claude.json`. Có thể sửa tay theo cấu trúc `mcpServers` như trên, rồi khởi động lại Claude Code.
+
+### 3.4 Cài dưới dạng plugin (khuyến nghị)
+
+Plugin `gem-jira` (marketplace `gem-tools`) đóng gói sẵn MCP server (đã build trong `dist/`) và skill `logwork`, nên không cần `npx` hay clone.
+
+```text
+/plugin marketplace add pham-cao/jira_gem_mcp
+/plugin install gem-jira@gem-tools
+```
+
+Claude Code hỏi các giá trị sau khi cài:
+
+| Khoá | Mặc định | Ghi chú |
+|---|---|---|
+| `jira_base_url` | `https://pm.gem-corp.tech` | |
+| `confluence_base_url` | `https://conf.gem-corp.tech` | |
+| `username` | — | Bắt buộc; dùng chung Jira và Confluence |
+| `password` | — | Bắt buộc, `sensitive`: lưu trong secure storage, không nằm trong file cấu hình |
+
+- **Đã cài server `jira` bằng `claude mcp add`?** Gỡ bản cũ để tránh trùng tool: `claude mcp remove jira -s user`.
+- **Tên tool.** Trong plugin, tool có tiền tố dạng `mcp__plugin_gem-jira_jira__jira_get_issue`. Skill `logwork` tự dùng đúng tên.
+- **Skill.** Dùng `/gem-jira:logwork start <ISSUE>`, `/gem-jira:logwork stop`, `/gem-jira:logwork daily`; xem [README › Skill logwork](../README.md#skill-logwork). Dữ liệu ghi vào `./logwork/` (git-excluded).
+- **Kiểm tra.** `/plugin` để xem trạng thái, `/mcp` để thấy server `jira` ở trạng thái connected.
+- **Cập nhật.** `/plugin marketplace update gem-tools`, rồi cập nhật plugin và khởi động lại Claude Code. Các cách khác (3.1–3.3) vẫn dùng được; khi đó không có skill `logwork`.
 
 ## 4. Claude Desktop
 

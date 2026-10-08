@@ -1,6 +1,6 @@
 # Danh sách tool của jira-server-mcp
 
-Tài liệu tham khảo cho 26 tool Jira, cùng 13 tool Confluence (xem [mục 9](#9-confluence)) khi đặt `CONFLUENCE_BASE_URL`. Thông thường bạn **không cần gọi tool trực tiếp**: chỉ cần mô tả yêu cầu bằng lời, Claude sẽ tự chọn tool và tham số. Tài liệu này giúp bạn biết MCP làm được gì, giới hạn ở đâu, và đọc hiểu kết quả.
+Tài liệu tham khảo cho 26 tool Jira, cùng 14 tool Confluence (xem [mục 9](#9-confluence)) khi đặt `CONFLUENCE_BASE_URL`. Thông thường bạn **không cần gọi tool trực tiếp**: chỉ cần mô tả yêu cầu bằng lời, Claude sẽ tự chọn tool và tham số. Tài liệu này giúp bạn biết MCP làm được gì, giới hạn ở đâu, và đọc hiểu kết quả.
 
 Cài đặt và kết nối với client: xem [integration.md](integration.md).
 
@@ -23,7 +23,7 @@ Cài đặt và kết nối với client: xem [integration.md](integration.md).
 | | [`jira_move_issues_to_sprint`](#jira_move_issues_to_sprint), [`jira_create_sprint`](#jira_create_sprint), [`jira_update_sprint`](#jira_update_sprint) | ghi |
 | [Confluence](#9-confluence) | [`confluence_search`](#confluence_search), [`confluence_get_page`](#confluence_get_page), [`confluence_get_page_children`](#confluence_get_page_children), [`confluence_list_spaces`](#confluence_list_spaces), [`confluence_get_comments`](#confluence_get_comments), [`confluence_get_labels`](#confluence_get_labels), [`confluence_list_attachments`](#confluence_list_attachments) | đọc |
 | | [`confluence_download_attachment`](#confluence_download_attachment) | đọc Confluence, ghi file local |
-| | [`confluence_create_page`](#confluence_create_page), [`confluence_update_page`](#confluence_update_page), [`confluence_add_comment`](#confluence_add_comment), [`confluence_add_labels`](#confluence_add_labels), [`confluence_upload_attachment`](#confluence_upload_attachment) | ghi |
+| | [`confluence_create_page`](#confluence_create_page), [`confluence_update_page`](#confluence_update_page), [`confluence_add_comment`](#confluence_add_comment), [`confluence_add_labels`](#confluence_add_labels), [`confluence_upload_attachment`](#confluence_upload_attachment), [`confluence_fill_daily`](#confluence_fill_daily) | ghi |
 
 - **Tool ghi** không xuất hiện khi bật `JIRA_READ_ONLY=true`. Khi đó còn 14 tool đọc.
 - **Tool agile** chỉ xuất hiện khi Jira có Jira Software. Server tự kiểm tra lúc khởi động.
@@ -723,6 +723,40 @@ Ví dụ: `{ "pageId": "208764902", "filePath": "/home/caopv/report.pdf", "comme
 - Kết quả: `{id, title, mediaType, fileSize, version}` của attachment.
 - Tool đọc file local bất kỳ: đọc kỹ `filePath` trước khi duyệt.
 
+### `confluence_fill_daily`
+
+Điền ô của **chính bạn** cho một ngày trong trang daily meeting của team (các mục A. Yesterday Task / B. Today Task / C. Problems). Tool đọc trang, tìm cột ngày và hàng của bạn (nhận diện theo user key), chỉ thay nội dung đúng ô đó. → `GET` + `PUT /rest/api/content/{id}`
+
+| Tham số | Kiểu | Bắt buộc | Mặc định | Mô tả |
+|---|---|---|---|---|
+| `pageId` | string | ✓ | | Trang daily (chuỗi số) |
+| `date` | string | ✓ | | Ngày của cột, dạng `YYYY-MM-DD` |
+| `yesterday` | `{text, issueKey?}[]` | | `[]` | Mục A. `issueKey` (nếu có) hiển thị thành link tới issue Jira |
+| `today` | `{text, issueKey?}[]` | | `[]` | Mục B, cùng dạng với `yesterday` |
+| `problems` | string[] | | `[]` | Mục C |
+| `preview` | boolean | | `true` | `true`: chỉ xem trước, **không ghi**. `false`: ghi lên trang |
+| `overwrite` | boolean | | `false` | Cho phép ghi đè ô đã có nội dung |
+
+Quy trình dùng: gọi với `preview: true`, đọc `before`/`after`, và chỉ gọi lại với `preview: false` khi người dùng đã xác nhận.
+
+Ví dụ: `{ "pageId": "212026868", "date": "2026-10-09", "today": [{ "text": "Làm API refresh token", "issueKey": "ABC-123" }], "preview": true }`
+
+Kết quả: `{preview, date, row, before, after, version, url}`
+- `row`: nhãn hàng của bạn trên trang; `before`/`after`: nội dung ô (storage XHTML) trước và sau khi điền; `version`: version hiện tại của trang (khi `preview: false` là version mới sau khi ghi); `url`: link trang.
+- Mục A và B rỗng được điền dấu `—`; mục C rỗng chỉ có tiêu đề.
+- Nếu trang bị người khác sửa giữa lúc đọc và ghi (409), tool đọc lại và làm lại một lần, kể cả bước kiểm tra ghi đè.
+
+Các lỗi:
+
+| Tình huống | Thông báo |
+|---|---|
+| Không có cột cho `date` | `Trang daily không có cột cho ngày <date>. Các ngày hiện có: …. Có thể đã sang sprint/tuần mới — hãy cung cấp link trang daily mới.` |
+| Không có hàng của bạn | `Không tìm thấy hàng của bạn (userKey …) trong bảng daily. Hãy nhờ người quản lý trang thêm bạn vào bảng.` |
+| Bảng có ô gộp nhiều hàng | `Bảng daily có ô gộp nhiều hàng (rowspan) nên không xác định chắc chắn được ô cần điền. Hãy điền thủ công trên Confluence.` |
+| Ô đã có nội dung, `overwrite: false` | `Ô ngày <date> của bạn đã có nội dung. Xem "before" và gọi lại với overwrite: true nếu muốn ghi đè.` kèm nội dung hiện tại |
+
+- Tool không tự thêm cột ngày hoặc hàng thành viên vào trang.
+
 ---
 
 ## Phụ lục: tham chiếu nhanh REST endpoint
@@ -768,3 +802,4 @@ Ví dụ: `{ "pageId": "208764902", "filePath": "/home/caopv/report.pdf", "comme
 | `confluence_add_comment` | POST | `/rest/api/content` (`type: comment`) |
 | `confluence_add_labels` | POST | `/rest/api/content/{id}/label` |
 | `confluence_upload_attachment` | POST | `/rest/api/content/{id}/child/attachment` |
+| `confluence_fill_daily` | GET + PUT | `/rest/api/content/{id}` (và `/rest/api/user/current`) |

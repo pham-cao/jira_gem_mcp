@@ -20,6 +20,7 @@
 - [Tính năng](#tính-năng)
 - [Bắt đầu nhanh](#bắt-đầu-nhanh)
 - [Cài đặt](#cài-đặt)
+- [Skill logwork](#skill-logwork)
 - [Cấu hình](#cấu-hình)
 - [Danh sách tool](#danh-sách-tool)
 - [Ví dụ sử dụng](#ví-dụ-sử-dụng)
@@ -79,6 +80,28 @@ Khởi động lại Claude Code, chạy `/mcp` để kiểm tra trạng thái `
 
 > Hướng dẫn chi tiết cho Claude Code, Claude Desktop, VS Code và Cursor, kèm bảng xử lý sự cố: **[docs/integration.md](docs/integration.md)**.
 
+### Cài dưới dạng plugin (khuyến nghị)
+
+Plugin `gem-jira` gồm MCP server và skill `logwork`, cài bằng hai lệnh trong Claude Code:
+
+```text
+/plugin marketplace add pham-cao/jira_gem_mcp
+/plugin install gem-jira@gem-tools
+```
+
+Khi cài, Claude Code hỏi các giá trị cấu hình:
+
+| Mục | Mặc định | Ghi chú |
+|---|---|---|
+| Jira URL (`jira_base_url`) | `https://pm.gem-corp.tech` | |
+| Confluence URL (`confluence_base_url`) | `https://conf.gem-corp.tech` | |
+| Username (`username`) | — | Bắt buộc; dùng chung cho Jira và Confluence |
+| Password (`password`) | — | Bắt buộc; lưu trong secure storage |
+
+Nếu trước đó bạn đã thêm server `jira` bằng `claude mcp add`, hãy gỡ bản cũ để không bị trùng tool: `claude mcp remove jira -s user`.
+
+Hai cách dưới đây (A, B) dành cho client khác hoặc khi không dùng plugin; khi đó không có skill `logwork`.
+
 ### Cách A — `npx` từ git (không cần clone)
 
 Thêm vào `.mcp.json` của project hoặc `~/.claude.json`:
@@ -119,6 +142,21 @@ Sau đó dùng cấu hình như cách A, thay `command`/`args` bằng:
 ```
 
 Cập nhật phiên bản mới: `git pull && npm ci && npm run build`, rồi khởi động lại client.
+
+## Skill logwork
+
+Skill `logwork` (có trong plugin `gem-jira`) ghi lại thời gian làm task Jira trên máy bạn, đề xuất worklog và điền daily meeting trên Confluence. Skill tự kích hoạt khi bạn giao task (key dạng `ABC-123` hoặc link `/browse/ABC-123`), hoặc gọi trực tiếp:
+
+| Lệnh | Tác dụng |
+|---|---|
+| `/gem-jira:logwork start ABC-123` | Bắt đầu task: lấy summary từ Jira, mở phiên mới (giờ lấy bằng lệnh `date`) trong `./logwork/YYYY-MM-DD.md` |
+| `/gem-jira:logwork stop` | Kết thúc task: đóng phiên, đề xuất worklog (làm tròn lên 15 phút), **hỏi bạn trước** khi gọi `jira_add_worklog`. Phiên đã log được đánh dấu `[worklog <id>]` ngay trong file |
+| `/gem-jira:logwork daily` | Dựng nội dung A (Yesterday) / B (Today) / C (Problems), xem trước bằng `confluence_fill_daily` với `preview: true`, chỉ ghi lên Confluence sau khi bạn xác nhận |
+
+- Thư mục `./logwork/` nằm trong repo đang làm việc và được tự thêm vào `.git/info/exclude`, nên **không bị commit**.
+- `./logwork/config.json` lưu link và `pageId` của trang daily; skill hỏi một lần nếu chưa có.
+- Daily được điền vào ô của **ngày làm việc kế tiếp** (bỏ thứ 7, chủ nhật).
+- Skill không bao giờ ghi worklog hoặc daily khi bạn chưa đồng ý rõ ràng.
 
 ## Cấu hình
 
@@ -163,7 +201,7 @@ Bất kỳ bước nào thất bại, server thoát ngay và in lý do ra stderr
 
 `jira_list_boards` · `jira_list_sprints` · `jira_get_sprint_issues` · `jira_create_sprint` ✎ · `jira_update_sprint` ✎ · `jira_move_issues_to_sprint` ✎
 
-### Confluence — 13 tool (khi có `CONFLUENCE_BASE_URL`)
+### Confluence — 14 tool (khi có `CONFLUENCE_BASE_URL`)
 
 | Nhóm | Tool |
 |---|---|
@@ -171,6 +209,7 @@ Bất kỳ bước nào thất bại, server thoát ngay và in lý do ra stderr
 | Comment | `confluence_get_comments` · `confluence_add_comment` ✎ |
 | Label | `confluence_get_labels` · `confluence_add_labels` ✎ |
 | Attachment | `confluence_list_attachments` · `confluence_download_attachment` · `confluence_upload_attachment` ✎ |
+| Daily | `confluence_fill_daily` ✎ |
 
 ### Quy ước dữ liệu
 
