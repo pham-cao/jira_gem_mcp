@@ -8,6 +8,13 @@ import { downloadTo, readUploadFile } from "../download.js";
 const limit = z.number().int().min(1).max(100).default(25);
 const start = z.number().int().min(0).default(0);
 
+// Confluence returns attachment ids as "att12345"; the REST path takes the digits.
+const attachmentId = z
+  .string()
+  .trim()
+  .regex(/^(att)?\d+$/, 'must be an attachment id like "att12345" or "12345"')
+  .transform((s) => s.replace(/^att/, ""));
+
 const slimAttachment = (a: any) => ({
   id: a.id,
   title: a.title,
@@ -35,7 +42,7 @@ export function register(ctx: ToolContext): void {
     {
       description: "Download a Confluence attachment (id from confluence_list_attachments) to a local path. If destPath is a directory, the attachment title is used as filename.",
       input: {
-        attachmentId: numericId,
+        attachmentId,
         destPath: z.string().min(1).describe("Absolute file or directory path"),
         overwrite: z.boolean().default(false),
       },

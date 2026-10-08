@@ -39,7 +39,7 @@ describe("confluence_list_attachments", () => {
 
 describe("confluence_download_attachment", () => {
   const meta = (download: string, title = "a.txt") =>
-    http.get(`${CAPI}/content/77`, () => HttpResponse.json({ id: "77", title, _links: { download } }));
+    http.get(`${CAPI}/content/77`, () => HttpResponse.json({ id: "att77", title, _links: { download } }));
   const bytes = http.get(`${CONF_BASE}/download/attachments/1/a.txt`, () => new HttpResponse(new Uint8Array([1, 2, 3])));
 
   it("downloads a relative link into a directory under basename(title)", async () => {
@@ -72,6 +72,25 @@ describe("confluence_download_attachment", () => {
     expect(await (await h()).text("confluence_download_attachment", { attachmentId: "77", destPath: dir })).toBe(
       "URL tải file khác host Confluence, từ chối gửi thông tin đăng nhập: https://evil.test/x",
     );
+  });
+
+  it("downloads by the att-prefixed id returned by confluence_list_attachments", async () => {
+    mswServer.use(
+      http.get(`${CAPI}/content/123/child/attachment`, () =>
+        HttpResponse.json({ results: [{ id: "att77", title: "a.txt", extensions: {}, version: { number: 1 } }], start: 0, limit: 25, size: 1 }),
+      ),
+      http.get(`${CAPI}/content/77`, () => HttpResponse.json({ id: "att77", title: "a.txt", _links: { download: "/download/attachments/1/a.txt?version=1" } })),
+      bytes,
+    );
+    const c = await h();
+    const [att] = (await c.json("confluence_list_attachments", { pageId: "123" })).items;
+    expect(att.id).toBe("att77");
+    const out = await c.json("confluence_download_attachment", { attachmentId: ` ${att.id} `, destPath: dir });
+    expect(out).toEqual({ path: join(dir, "a.txt"), size: 3 });
+  });
+
+  it.each(["att", "12/../1", "attx1", "att12/../1"])("rejects attachmentId %j before any request", async (attachmentId) => {
+    expect((await (await h()).call("confluence_download_attachment", { attachmentId, destPath: dir })).isError).toBe(true);
   });
 
   it("rejects a non-numeric attachmentId", async () => {
