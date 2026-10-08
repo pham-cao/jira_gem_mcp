@@ -83,6 +83,22 @@ describe("confluence_fill_daily", () => {
     expect(bodies).toHaveLength(1);
   });
 
+  it.each([{}, { userKey: "" }, { userKey: 42 }])("refuses when the current user has no usable userKey (%j)", async (extra) => {
+    let pageReads = 0;
+    mswServer.use(
+      http.get(`${CAPI}/user/current`, () => HttpResponse.json({ type: "anonymous", username: "caopv", ...extra })),
+      http.get(URL5, () => {
+        pageReads++;
+        return HttpResponse.json(page(2));
+      }),
+    );
+    const h = await connectTools([register], { confluence: true });
+    const r = await h.call("confluence_fill_daily", { pageId: "5", date: "2026-10-08", ...content });
+    expect(r.isError).toBe(true);
+    expect((r.content[0] as { text: string }).text).toContain("Không lấy được userKey của tài khoản Confluence hiện tại.");
+    expect(pageReads).toBe(0);
+  });
+
   it("rejects an invalid issueKey without any request", async () => {
     const h = await connectTools([register], { confluence: true });
     const r = await h.call("confluence_fill_daily", { pageId: "5", date: "2026-10-08", today: [{ text: "x", issueKey: "bad key" }] });

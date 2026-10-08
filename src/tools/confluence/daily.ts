@@ -33,6 +33,8 @@ export function register(ctx: ToolContext): void {
     async (args) => {
       const c = requireConfluence(ctx);
       const me = await c.get<any>("/rest/api/user/current");
+      // Without a userKey no row can match; say so instead of a misleading no-row error.
+      if (typeof me?.userKey !== "string" || !me.userKey) throw new Error("Không lấy được userKey của tài khoản Confluence hiện tại.");
       const after = renderDailyCell({ yesterday: args.yesterday, today: args.today, problems: args.problems }, ctx.client.baseUrl);
       const url = `${c.baseUrl}/pages/viewpage.action?pageId=${args.pageId}`;
 
