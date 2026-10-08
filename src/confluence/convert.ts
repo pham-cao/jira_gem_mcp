@@ -1,4 +1,6 @@
 import { Marked } from "marked";
+import TurndownService from "turndown";
+import { gfm } from "turndown-plugin-gfm";
 
 const esc = (s: string): string => s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
 
@@ -55,4 +57,92 @@ function fixEntities(html: string): string {
 
 export function markdownToStorage(src: string): string {
   return fixEntities(md.parse(src, { async: false }) as string).trimEnd();
+}
+
+const PANELS: Record<string, string> = { info: "Info", note: "Note", warning: "Warning", tip: "Tip" };
+const CDATA = /<!\[CDATA\[([\s\S]*?)\]\]>/g;
+
+const child = (node: HTMLElement, name: string): HTMLElement | undefined =>
+  Array.from(node.childNodes).find((n): n is HTMLElement => n.nodeName === name);
+const param = (node: HTMLElement, name: string): string | undefined =>
+  Array.from(node.childNodes).find((n) => n.nodeName === "AC:PARAMETER" && (n as HTMLElement).getAttribute("ac:name") === name)?.textContent ?? undefined;
+const quote = (label: string, body: string): string => `\n\n${`**${label}:** ${body.trim()}`.replace(/^/gm, "> ")}\n\n`;
+
+function macro(el: HTMLElement, content: string, bodies: string[]): string {
+  const name = el.getAttribute("ac:name") ?? "";
+  if (name === "code" || name === "noformat") {
+    const idx = child(el, "AC:PLAIN-TEXT-BODY")?.getAttribute("data-body");
+    const body = (idx == null ? "" : bodies[Number(idx)]).replace(/\n$/, "");
+    const fence = "`".repeat(Math.max(3, ...(body.match(/`{3,}/g) ?? []).map((f) => f.length + 1)));
+    return `\n\n${fence}${param(el, "language")?.trim() ?? ""}\n${body}\n${fence}\n\n`;
+  }
+  if (Object.hasOwn(PANELS, name)) return quote(PANELS[name], content);
+  if (name === "jira") return param(el, "key")?.trim() ?? "";
+  return `[macro: ${name}]${content.trim() ? `\n\n${content.trim()}\n\n` : ""}`;
+}
+
+// Replacement for Confluence ac:/ri: elements; undefined means "not ours".
+function confluence(content: string, el: HTMLElement, bodies: string[]): string | undefined {
+  switch (el.nodeName) {
+    case "AC:STRUCTURED-MACRO":
+    case "AC:MACRO":
+      return macro(el, content, bodies);
+    case "AC:PARAMETER":
+    case "AC:PLAIN-TEXT-BODY":
+      return "";
+    case "AC:LINK": {
+      const title = child(el, "RI:PAGE")?.getAttribute("ri:content-title") ?? child(el, "RI:ATTACHMENT")?.getAttribute("ri:filename");
+      return title ? `[${title}]` : content;
+    }
+    case "AC:IMAGE":
+      return `![${child(el, "RI:ATTACHMENT")?.getAttribute("ri:filename") ?? child(el, "RI:URL")?.getAttribute("ri:value") ?? ""}]`;
+  }
+  return undefined;
+}
+
+// Turndown collapses whitespace in every non-<pre> text node, so plain-text bodies are stashed and read back by index.
+function makeTurndown(bodies: string[]): TurndownService {
+  const td = new TurndownService({
+    headingStyle: "atx",
+    codeBlockStyle: "fenced",
+    bulletListMarker: "-",
+    // Empty elements (e.g. <ac:link><ri:page/></ac:link>) bypass custom rules and land here.
+    blankReplacement: (content, node) => confluence(content, node as HTMLElement, bodies) ?? ((node as { isBlock?: boolean }).isBlock ? "\n\n" : ""),
+  });
+  td.use(gfm);
+  td.addRule("confluence", {
+    filter: (n) => confluence("", n, bodies) !== undefined,
+    replacement: (content, node) => confluence(content, node as HTMLElement, bodies) ?? content,
+  });
+  // Single space after the marker (Turndown 7.2 pads to 4 columns).
+  td.addRule("listItem", {
+    filter: "li",
+    replacement: (content, node, options) => {
+      const parent = node.parentNode as HTMLElement;
+      let prefix = `${options.bulletListMarker} `;
+      if (parent.nodeName === "OL") {
+        const start = parent.getAttribute("start");
+        prefix = `${(start ? Number(start) : 1) + Array.prototype.indexOf.call(parent.children, node)}. `;
+      }
+      const body = content.replace(/^\n+/, "").replace(/\n+$/, "\n").replace(/\n/gm, `\n${" ".repeat(prefix.length)}`);
+      return prefix + body + (node.nextSibling && !/\n$/.test(body) ? "\n" : "");
+    },
+  });
+  return td;
+}
+
+export function storageToMarkdown(xhtml: string): string {
+  const bodies: string[] = [];
+  const html = xhtml
+    // Stash plain-text bodies; joining split CDATA sections restores any "]]>" in the original text.
+    .replace(/<ac:plain-text-body>([\s\S]*?)<\/ac:plain-text-body>/g, (_m, inner: string) => {
+      bodies.push(inner.replace(CDATA, "$1"));
+      return `<ac:plain-text-body data-body="${bodies.length - 1}"></ac:plain-text-body>`;
+    })
+    .replace(CDATA, (_m, text: string) => esc(text))
+    // The HTML parser treats self-closing unknown tags as open tags, swallowing later siblings.
+    .replace(/<((?:ac|ri):[\w-]+)((?:\s+[^\s=/>]+\s*=\s*(?:"[^"]*"|'[^']*'))*)\s*\/>/g, "<$1$2></$1>")
+    // A void child keeps Turndown from trimming the spaces around empty inline elements.
+    .replace(/<((?:ac|ri):[\w-]+)((?:\s+[^\s=/>]+\s*=\s*(?:"[^"]*"|'[^']*'))*)\s*>\s*<\/\1>/g, "<$1$2><wbr /></$1>");
+  return makeTurndown(bodies).turndown(html).trim();
 }

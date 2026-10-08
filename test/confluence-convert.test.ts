@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { markdownToStorage } from "../src/confluence/convert.js";
+import { markdownToStorage, storageToMarkdown } from "../src/confluence/convert.js";
 
 describe("markdownToStorage", () => {
   it("renders code blocks as the code macro", () => {
@@ -45,4 +45,35 @@ describe("markdownToStorage", () => {
   it("does not resolve inherited object keys as entities", () => {
     expect(markdownToStorage("&toString; &constructor;")).toBe("<p>&amp;toString; &amp;constructor;</p>");
   });
+});
+
+describe("storageToMarkdown", () => {
+  const code = (lang: string, body: string) =>
+    `<ac:structured-macro ac:name="code"><ac:parameter ac:name="language">${lang}</ac:parameter><ac:plain-text-body><![CDATA[${body}]]></ac:plain-text-body></ac:structured-macro>`;
+
+  it("keeps CDATA code content", () => {
+    expect(storageToMarkdown(code("ts", "if (a < b) {}"))).toBe("```ts\nif (a < b) {}\n```");
+  });
+  it("does not swallow siblings after self-closing ri:/ac: tags", () => {
+    const md = storageToMarkdown('<p><ac:link><ri:page ri:content-title="Spec" /></ac:link> và <strong>sau</strong></p>');
+    expect(md).toBe("[Spec] và **sau**");
+  });
+  it.each([["info", "Info"], ["note", "Note"], ["warning", "Warning"], ["tip", "Tip"]])("renders %s panels", (name, label) => {
+    const md = storageToMarkdown(`<ac:structured-macro ac:name="${name}"><ac:rich-text-body><p>Chú ý</p></ac:rich-text-body></ac:structured-macro>`);
+    expect(md).toBe(`> **${label}:** Chú ý`);
+  });
+  it("renders jira macro as the issue key", () => {
+    expect(storageToMarkdown('<p><ac:structured-macro ac:name="jira"><ac:parameter ac:name="key">ABC-12</ac:parameter></ac:structured-macro></p>')).toBe("ABC-12");
+  });
+  it("renders attachment images", () => {
+    expect(storageToMarkdown('<ac:image><ri:attachment ri:filename="a.png" /></ac:image>')).toBe("![a.png]");
+  });
+  it("marks unknown macros", () => {
+    expect(storageToMarkdown('<ac:structured-macro ac:name="toc" />')).toBe("[macro: toc]");
+  });
+  it("keeps tables", () => {
+    expect(storageToMarkdown("<table><tbody><tr><th>a</th></tr><tr><td>1</td></tr></tbody></table>")).toContain("| a |");
+  });
+  it.each(["# Tiêu đề\n\nĐoạn **đậm**", "- a\n- b", "| a | b |\n| --- | --- |\n| 1 | 2 |", "```js\nx()\n```"])(
+    "round-trips %j", (md) => { expect(storageToMarkdown(markdownToStorage(md))).toBe(md); });
 });
