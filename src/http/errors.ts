@@ -48,8 +48,8 @@ export class HttpError extends Error {
           fieldErrors = Object.fromEntries(Object.entries(body.errors).map(([k, v]) => [k, String(v)]));
         }
         // Confluence: { message, data: { errors: [{ message: { translation } }] } }
-        if (typeof body.message === "string") messages.push(body.message);
-        if (Array.isArray(body.data?.errors)) {
+        if (service === "Confluence" && typeof body.message === "string") messages.push(body.message);
+        if (service === "Confluence" && Array.isArray(body.data?.errors)) {
           for (const e of body.data.errors) {
             const t = e?.message?.translation;
             if (typeof t === "string") messages.push(t);
@@ -68,7 +68,7 @@ export class HttpError extends Error {
       path,
       messages,
       fieldErrors,
-      captcha: denied.toUpperCase().includes("CAPTCHA_CHALLENGE") || seraph.toUpperCase().includes("AUTHENTICATION_DENIED"),
+      captcha: denied.toUpperCase().includes("CAPTCHA_CHALLENGE") || (service === "Confluence" && seraph.toUpperCase().includes("AUTHENTICATION_DENIED")),
       statusText: res.statusText,
     });
   }

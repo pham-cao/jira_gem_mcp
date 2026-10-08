@@ -1,11 +1,22 @@
-import { describe, expect, it } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 import { HttpClient } from "../src/http/client.js";
 import { HttpError, formatError } from "../src/http/errors.js";
 
 const mk = (status: number, extra: Partial<ConstructorParameters<typeof HttpError>[0]> = {}) =>
   new HttpError({ status, method: "GET", path: "/rest/api/content/1", messages: [], fieldErrors: {}, captcha: false, ...extra });
 
+afterEach(() => vi.restoreAllMocks());
+
 describe("HttpError (Confluence)", () => {
+  it("ignores a top-level message in Jira error bodies", async () => {
+    const res = new Response(JSON.stringify({ errorMessages: ["a"], message: "extra" }), { status: 400 });
+    const e = await HttpError.fromResponse(res, "POST", "/x");
+    expect(e.messages).toEqual(["a"]);
+  });
+  it("does not treat X-Seraph-LoginReason as CAPTCHA for Jira", async () => {
+    const res = new Response(null, { status: 401, headers: { "X-Seraph-LoginReason": "AUTHENTICATION_DENIED" } });
+    expect((await HttpError.fromResponse(res, "GET", "/x")).captcha).toBe(false);
+  });
   it("parses Confluence error bodies", async () => {
     const res = new Response(JSON.stringify({ statusCode: 400, message: "Bad body", data: { errors: [{ message: { translation: "Title missing" } }] } }), { status: 400 });
     const e = await HttpError.fromResponse(res, "POST", "/rest/api/content", "Confluence");
@@ -31,6 +42,7 @@ describe("HttpError (Confluence)", () => {
     expect(formatError(mk(409, { statusText: "Conflict" }))).toBe("Lỗi Jira 409 Conflict");
   });
   it("names the service in network errors", async () => {
+    vi.spyOn(globalThis, "fetch").mockRejectedValue(new TypeError("fetch failed", { cause: { code: "ENOTFOUND", message: "x" } }));
     const c = new HttpClient({ baseUrl: "https://nope.invalid", username: "u", password: "p", timeoutMs: 200, service: "Confluence" }, { retryDelayMs: 0 });
     const e = await c.get("/x").catch((x) => x);
     expect(formatError(e)).toMatch(/^Lỗi kết nối tới Confluence: /);
