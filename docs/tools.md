@@ -531,7 +531,7 @@ Sửa sprint, hoặc start/close sprint. Chỉ gửi những thuộc tính đư�
 Chỉ có khi đặt `CONFLUENCE_BASE_URL`. Dùng chung tài khoản Jira, trừ khi đặt `CONFLUENCE_USERNAME`/`CONFLUENCE_PASSWORD`.
 
 **Quy ước:**
-- `pageId`, `attachmentId`, `parentId`, `parentCommentId` phải là chuỗi số (vd `"208764902"`).
+- `pageId`, `parentId`, `parentCommentId` phải là chuỗi số (vd `"208764902"`). `attachmentId` nhận đúng id Confluence trả về (vd `"att208765001"`) hoặc chỉ phần số.
 - Body trang và comment mặc định là **Markdown** (`format: "markdown"`), server tự chuyển sang storage XHTML khi ghi và ngược lại khi đọc. `format: "storage"` dùng XHTML thô của Confluence (cần khi muốn macro). HTML thô trong Markdown bị escape.
 - Danh sách trả dạng `{ "items": [ … ], "start": 0, "limit": 25, "size": 25, "total": 120, "hasMore": true }`. Muốn lấy trang tiếp, tăng `start` thêm `limit`. `total` vắng nếu Confluence không trả.
 - Tham số phân trang chung: `limit` (mặc định 25, 1–100), `start` (mặc định 0).
@@ -567,7 +567,7 @@ Kết quả: phân trang với `items: [{id, type, title, space, version, lastMo
 
 Ví dụ: `{ "pageId": "208764902", "maxChars": 2000 }`
 
-Kết quả: `{ id, type, title, space, version, lastModified, url, ancestors: [{id, title}], body, truncated }`. Khi bị cắt có thêm `totalChars`. Giữ lại `version` nếu định sửa trang.
+Kết quả: `{ id, type, title, space, version, lastModified, url, ancestors: [{id, title}], body, truncated }`. Khi bị cắt có thêm `totalChars` và `warning`: không dùng body đã cắt để ghi lại trang (sẽ mất phần bị cắt). Giữ lại `version` nếu định sửa trang.
 
 ### `confluence_get_page_children`
 
@@ -625,7 +625,7 @@ Liệt kê file đính kèm của trang. → `GET /rest/api/content/{id}/child/a
 | `limit` | integer | | 25 (tối đa 100) |
 | `start` | integer | | 0 |
 
-Kết quả: phân trang với `items: [{id, title, mediaType, fileSize, version}]`. Dùng `id` cho `confluence_download_attachment`.
+Kết quả: phân trang với `items: [{id, title, mediaType, fileSize, version}]`, `id` dạng `"att208765001"`. Dùng nguyên `id` cho `confluence_download_attachment`.
 
 ### `confluence_download_attachment`
 
@@ -633,11 +633,11 @@ Tải file đính kèm về máy. → `GET /rest/api/content/{id}` rồi tải t
 
 | Tham số | Kiểu | Bắt buộc | Mặc định | Mô tả |
 |---|---|---|---|---|
-| `attachmentId` | string | ✓ | | Lấy từ `items[].id` của [`confluence_list_attachments`](#confluence_list_attachments) |
+| `attachmentId` | string | ✓ | | Lấy từ `items[].id` của [`confluence_list_attachments`](#confluence_list_attachments), vd `"att208765001"` (hoặc `"208765001"`) |
 | `destPath` | string | ✓ | | Đường dẫn tuyệt đối của file đích, hoặc thư mục (khi đó dùng title của attachment làm tên file) |
 | `overwrite` | boolean | | `false` | Mặc định không ghi đè file đã có |
 
-Ví dụ: `{ "attachmentId": "208765001", "destPath": "/home/caopv/Downloads/" }`
+Ví dụ: `{ "attachmentId": "att208765001", "destPath": "/home/caopv/Downloads/" }`
 
 - Cùng quy tắc với [`jira_download_attachment`](#jira_download_attachment): từ chối tải nếu URL ở host khác `CONFLUENCE_BASE_URL`, để không gửi mật khẩu ra ngoài.
 - Có trong chế độ chỉ đọc (chỉ đọc từ Confluence) nhưng vẫn **ghi file ra máy bạn**, nên client sẽ hỏi xác nhận. Đọc kỹ `destPath` trước khi duyệt.
@@ -674,12 +674,15 @@ Sửa body và/hoặc tiêu đề. → `GET /rest/api/content/{id}` rồi `PUT /
 | `version` | integer | | | Version bạn đã đọc. Nếu khác version hiện tại, tool báo lỗi xung đột và **không ghi** |
 | `format` | `markdown` \| `storage` | | `markdown` | |
 | `minorEdit` | boolean | | `false` | Đánh dấu là sửa nhỏ |
+| `allowLossyMarkdown` | boolean | | `false` | Cho phép ghi đè bằng Markdown dù trang hiện tại có nội dung Markdown không giữ được |
 
 Phải có ít nhất `body` hoặc `title`. Ví dụ: `{ "pageId": "208770001", "version": 3, "body": "Nội dung mới" }`
 
 Kết quả: `{ id, title, version, url }` với `version` đã tăng.
 
-> ⚠️ `body` thay toàn bộ nội dung trang. Ghi bằng Markdown sẽ làm mất các macro mà Markdown không biểu diễn được. Với trang nhiều macro, đọc bằng `format: "storage"` rồi ghi lại bằng `format: "storage"`.
+> ⚠️ `body` thay toàn bộ nội dung trang. Markdown không giữ được macro (trừ code/noformat), ảnh, link tới trang khác, mention, gộp ô hay style của bảng. Nếu trang hiện tại có các phần này, ghi bằng Markdown sẽ bị **từ chối** (không ghi gì) trừ khi truyền `allowLossyMarkdown: true`. Cách đúng: đọc bằng `format: "storage"` rồi ghi lại bằng `format: "storage"`. Không ghi lại body đọc được với `truncated: true`.
+>
+> Sửa được cả blog post (tìm qua CQL): tool giữ nguyên `type` hiện có của nội dung.
 
 ### `confluence_add_comment`
 
