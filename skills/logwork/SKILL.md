@@ -6,7 +6,7 @@ argument-hint: "[start <ISSUE> | stop | daily]"
 
 # Logwork và Daily (gem-jira)
 
-Các tool trong skill này được gọi theo tên ngắn (`jira_get_issue`, `jira_search`, `jira_add_worklog`, `confluence_search`, `confluence_fill_daily`). Tên đầy đủ trong Claude Code có tiền tố mcp, ví dụ `mcp__plugin_gem-jira_jira__jira_get_issue`; dùng đúng tool có hậu tố tương ứng.
+Các tool trong skill này được gọi theo tên ngắn (`jira_get_issue`, `jira_search`, `jira_list_projects`, `jira_add_worklog`, `confluence_search`, `confluence_fill_daily`). Tên đầy đủ trong Claude Code có tiền tố mcp, ví dụ `mcp__plugin_gem-jira_jira__jira_get_issue`; dùng đúng tool có hậu tố tương ứng.
 
 ## Quy tắc an toàn (đọc trước)
 
@@ -22,6 +22,16 @@ Các tool trong skill này được gọi theo tên ngắn (`jira_get_issue`, `j
 - Người dùng nói xong task, dừng, nghỉ, chuyển task khác -> chạy "Kết thúc task".
 - Người dùng nói điền daily, cuối ngày -> chạy "Điền daily".
 - Đối số: `start KEY` = bắt đầu task KEY; `stop` = kết thúc task đang mở; `daily` = điền daily.
+
+## Setup lần đầu: mã dự án Jira của repo
+
+Chạy TRƯỚC mọi luồng (start, stop, daily). Đọc `./logwork/config.json`; nếu chưa có trường `jiraProject`:
+
+1. Hỏi người dùng: "Repo này thuộc dự án Jira nào (mã dự án, ví dụ ABC)?". Nếu đang bắt đầu task `KEY` thì gợi ý phần trước dấu `-` của KEY (ví dụ `ABC-123` -> `ABC`).
+2. Viết hoa câu trả lời, rồi kiểm tra bằng `jira_list_projects`: mã phải trùng một `key` trong kết quả. Không trùng thì báo và hỏi lại.
+3. Ghi `jiraProject` vào `./logwork/config.json` (giữ nguyên các trường khác; tạo file và thư mục nếu chưa có, kèm bước `.git/info/exclude` ở "File logwork").
+
+Đã có `jiraProject` thì không hỏi lại. Người dùng muốn đổi dự án thì cập nhật trường này.
 
 ## File logwork
 
@@ -65,8 +75,10 @@ Mỗi task một mục. Phiên đang mở ghi `HH:MM–…`.
 ### `./logwork/config.json`
 
 ```json
-{ "dailyPageUrl": "https://conf.gem-corp.tech/pages/viewpage.action?pageId=212026868", "dailyPageId": "212026868" }
+{ "jiraProject": "ABC", "dailyPageUrl": "https://conf.gem-corp.tech/pages/viewpage.action?pageId=212026868", "dailyPageId": "212026868" }
 ```
+
+- `jiraProject`: mã dự án Jira của repo này (xem "Setup lần đầu"). Dùng để lọc task Jira ở mục B của daily và để cảnh báo task khác dự án.
 
 ## Lấy giờ
 
@@ -93,6 +105,7 @@ Phiên kéo qua nửa đêm, hoặc chạy daily sau nửa đêm: dùng file c�
 
 1. Lấy key: từ tin nhắn, từ link `.../browse/KEY`, hoặc từ đối số `start KEY`.
 2. Gọi `jira_get_issue` với `issueKey: KEY` để lấy summary và trạng thái. Lỗi (không thấy issue) thì báo người dùng và dừng.
+   Nếu phần dự án của KEY (trước dấu `-`) khác `jiraProject` thì HỎI: "Task {KEY} thuộc dự án X, không phải dự án của repo ({jiraProject}). Vẫn ghi logwork ở repo này?". Người dùng từ chối thì dừng, không mở phiên.
 3. Đọc `./logwork/YYYY-MM-DD.md` của hôm nay (tạo nếu chưa có). Nếu đang có phiên mở (`HH:MM–…`) của task khác thì đóng phiên đó trước bằng giờ hiện tại, tính lại `(XhYm)`. Nếu task vừa đóng còn phiên chưa đánh dấu thì chạy ngay bước 2–5 của "Kết thúc task và đề xuất worklog" cho task đó (vẫn HỎI trước, không tự log).
 4. Thêm mục `## KEY — {summary}` mới, hoặc thêm phiên mới vào mục đã có trong ngày, với giờ bắt đầu là giờ hiện tại. Trạng thái `in-progress`. Khi thêm phiên vào mục đã có: giữ nguyên mọi dấu `[worklog …]`/`[bỏ qua]` và các dòng `Đã làm`, chỉ nối thêm ` · HH:MM–…` và đặt dòng `Jira worklog:` thành `chờ xác nhận` (mục mới cũng ghi `chờ xác nhận`).
 5. Thông báo ngắn đúng một dòng: `Logwork: bắt đầu {KEY} lúc {HH:MM}`.
@@ -119,9 +132,9 @@ Daily điền vào ô của NGÀY LÀM VIỆC KẾ TIẾP, chạy vào cuối ng
 1. `date` = ngày làm việc kế tiếp (lệnh ở "Lấy giờ").
 2. Đọc `./logwork/YYYY-MM-DD.md` của hôm nay. Nếu có task còn phiên chưa đánh dấu, liệt kê các task đó và đề nghị log trước (bước 2–5 của "Kết thúc task và đề xuất worklog", vẫn hỏi từng task); xong hoặc người dùng từ chối thì mới điền daily. Dựng:
    - **A (yesterday)** = mỗi task trong file hôm nay: `{ text: <summary của issue>, issueKey: KEY }` (`text` ngắn, là summary lấy từ tiêu đề mục `## KEY — {summary}`).
-   - **B (today)** = các task trong file hôm nay có trạng thái `in-progress` hoặc `blocked` (`text` = summary của issue), hợp với kết quả `jira_search` với `jql: assignee = currentUser() AND status = "In Progress"`, khử trùng theo key. Mỗi phần tử `{ text, issueKey }`, với kết quả search cũng lấy `summary` làm `text`.
+   - **B (today)** = các task trong file hôm nay có trạng thái `in-progress` hoặc `blocked` (`text` = summary của issue), hợp với kết quả `jira_search` với `jql: project = <jiraProject> AND assignee = currentUser() AND status = "In Progress"` (chỉ task Jira cùng mã dự án của repo; `<jiraProject>` lấy từ `config.json`), khử trùng theo key. Mỗi phần tử `{ text, issueKey }`, với kết quả search cũng lấy `summary` làm `text`.
    - **C (problems)** = các dòng `Vướng mắc` khác rỗng, mảng chuỗi.
-3. `pageId`: lấy `dailyPageId` trong `./logwork/config.json`. Chưa có thì hỏi người dùng link trang daily và trích số sau `pageId=` trong URL. Nếu người dùng chỉ đưa tên trang, gọi `confluence_search` với `cql: type=page AND title ~ "<tên>"`, cho người dùng chọn. Rồi ghi `config.json` với `dailyPageUrl` và `dailyPageId`.
+3. `pageId`: lấy `dailyPageId` trong `./logwork/config.json`. Chưa có thì hỏi người dùng link trang daily và trích số sau `pageId=` trong URL. Nếu người dùng chỉ đưa tên trang, gọi `confluence_search` với `cql: type=page AND title ~ "<tên>"`, cho người dùng chọn. Rồi ghi `dailyPageUrl` và `dailyPageId` vào `config.json` (giữ nguyên các trường khác như `jiraProject`).
 4. Gọi `confluence_fill_daily` với `{ pageId, date, yesterday, today, problems, preview: true }` rồi hiện nội dung ô (`after`, dạng dễ đọc: A/B/C kèm các dòng) và `row`, `date` cho người dùng xem.
 5. Xử lý lỗi (giữ nguyên văn thông báo của tool khi báo người dùng):
    - Lỗi `Trang daily không có cột cho ngày ...` (no-date): hỏi link trang daily mới, cập nhật `config.json`, gọi lại preview với `pageId` mới.
@@ -146,6 +159,7 @@ Không tốt:
 
 ## Tóm tắt luồng
 
-- start: `jira_get_issue` -> ghi phiên mới vào `./logwork/` -> `Logwork: bắt đầu {KEY} lúc {HH:MM}`.
+- setup (lần đầu): hỏi mã dự án Jira -> kiểm tra bằng `jira_list_projects` -> lưu `jiraProject` vào `config.json`.
+- start: `jira_get_issue` -> (khác dự án thì hỏi) -> ghi phiên mới vào `./logwork/` -> `Logwork: bắt đầu {KEY} lúc {HH:MM}`.
 - stop: đóng phiên -> đề xuất worklog -> hỏi -> (đồng ý) `jira_add_worklog`.
 - daily: đề nghị log phiên còn sót -> dựng A/B/C -> `confluence_fill_daily` preview -> hỏi -> `preview: false`.

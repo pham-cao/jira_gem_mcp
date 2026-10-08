@@ -159,10 +159,11 @@ Skill `logwork` (có trong plugin `gem-jira`) ghi lại thời gian làm task Ji
 |---|---|
 | `/gem-jira:logwork start ABC-123` | Bắt đầu task: lấy summary từ Jira, mở phiên mới (giờ lấy theo đồng hồ máy bằng lệnh `node`, không ước lượng) trong `./logwork/YYYY-MM-DD.md` |
 | `/gem-jira:logwork stop` | Kết thúc task: đóng phiên, đề xuất worklog (làm tròn lên 15 phút), **hỏi bạn trước** khi gọi `jira_add_worklog`. Phiên đã log được đánh dấu `[worklog <id>]` ngay trong file |
-| `/gem-jira:logwork daily` | Dựng nội dung A (Yesterday) / B (Today) / C (Problems), xem trước bằng `confluence_fill_daily` với `preview: true`, chỉ ghi lên Confluence sau khi bạn xác nhận |
+| `/gem-jira:logwork daily` | Dựng nội dung A (Yesterday) / B (Today: task dở trong logwork hôm nay + task In Progress của bạn cùng dự án) / C (Problems), xem trước bằng `confluence_fill_daily` với `preview: true`, chỉ ghi lên Confluence sau khi bạn xác nhận |
 
 - Thư mục `./logwork/` nằm trong repo đang làm việc và được tự thêm vào `.git/info/exclude`, nên **không bị commit**.
-- `./logwork/config.json` lưu link và `pageId` của trang daily; skill hỏi một lần nếu chưa có.
+- Lần đầu dùng trong một repo, skill hỏi **mã dự án Jira** của repo (vd `ABC`) và lưu vào `./logwork/config.json`. Mục B của daily chỉ lấy task Jira **cùng mã dự án** đó; giao task thuộc dự án khác thì skill hỏi lại trước khi ghi.
+- `./logwork/config.json` cũng lưu link và `pageId` của trang daily; skill hỏi một lần nếu chưa có.
 - Daily được điền vào ô của **ngày làm việc kế tiếp** (bỏ thứ 7, chủ nhật).
 - Skill không bao giờ ghi worklog hoặc daily khi bạn chưa đồng ý rõ ràng.
 

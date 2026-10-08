@@ -169,7 +169,7 @@ Frontmatter:
   - `Đã làm:` danh sách gạch đầu dòng, viết theo kết quả đạt được. Dòng đã đưa vào một worklog có tiền tố `✓ `.
   - `Vướng mắc:`
   - `Jira worklog: chờ xác nhận | đã log hết | bỏ qua` — chỉ là dòng tóm tắt; nguồn sự thật là dấu trên từng phiên.
-- `./logwork/config.json`: `{ "dailyPageUrl": string, "dailyPageId": string }`.
+- `./logwork/config.json`: `{ "jiraProject": string, "dailyPageUrl": string, "dailyPageId": string }`. `jiraProject` là mã dự án Jira của repo, hỏi ở lần chạy đầu tiên (trước mọi luồng) khi chưa có, kiểm tra bằng `jira_list_projects` rồi lưu lại. Bắt đầu task thuộc dự án khác thì hỏi trước khi mở phiên.
 - Lần đầu tạo `./logwork/`, skill thêm dòng `logwork/` vào `.git/info/exclude` nếu đang ở trong git repo và dòng đó chưa có.
 - Giờ luôn lấy bằng lệnh `node -e` (ngày `toLocaleDateString("sv-SE")`, giờ `toTimeString().slice(0,5)`) tại thời điểm xảy ra, không để model ước lượng; chạy được trên Linux và macOS. `started` gửi dạng `YYYY-MM-DDTHH:MM:00` không múi giờ, `toJiraDate` hiểu là giờ máy.
 
@@ -194,7 +194,7 @@ Frontmatter:
 
 1. `date` = ngày làm việc kế tiếp sau hôm nay (bỏ qua thứ 7 và chủ nhật), tính bằng `node -e 'const d=new Date();do d.setDate(d.getDate()+1);while([0,6].includes(d.getDay()));console.log(d.toLocaleDateString("sv-SE"))'`.
 2. A = mỗi task trong file hôm nay: `{summary}` + `issueKey`.
-3. B = các task hôm nay có trạng thái in-progress hoặc blocked, hợp với kết quả `jira_search` JQL `assignee = currentUser() AND status = "In Progress"`, khử trùng theo key.
+3. B = các task hôm nay có trạng thái in-progress hoặc blocked, hợp với kết quả `jira_search` JQL `project = <jiraProject> AND assignee = currentUser() AND status = "In Progress"`, khử trùng theo key.
 4. C = các dòng "Vướng mắc" khác rỗng.
 5. `pageId` lấy từ `config.json`; chưa có thì hỏi link và trích `pageId=` từ URL (hoặc dùng `confluence_search` theo tiêu đề nếu người dùng chỉ đưa tên trang), rồi lưu lại.
 6. Gọi `confluence_fill_daily` với `preview: true` và cho người dùng xem nội dung ô.
