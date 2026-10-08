@@ -35,7 +35,6 @@ jira_gem_mcp/
 ├── .claude-plugin/
 │   ├── plugin.json
 │   └── marketplace.json
-├── .mcp.json
 ├── skills/logwork/SKILL.md
 ├── dist/                 ← được commit
 └── src/, test/, docs/ …
@@ -53,7 +52,9 @@ jira_gem_mcp/
 | `username` | string | — | | Username dùng chung cho Jira và Confluence |
 | `password` | string | — | ✓ | Mật khẩu (lưu trong secure storage) |
 
-### 2.2 `.mcp.json` (cấp plugin)
+### 2.2 MCP server (khai báo `mcpServers` ngay trong `plugin.json`)
+
+Không dùng `.mcp.json` ở gốc repo: file đó cũng là cấu hình MCP cấp project cho ai mở Claude Code trong repo này, với `${CLAUDE_PLUGIN_ROOT}` không được thay.
 
 ```json
 {
