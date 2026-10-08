@@ -1,4 +1,4 @@
-import { markdownToStorage } from "./convert.js";
+import { markdownToStorage, storageToMarkdown } from "./convert.js";
 
 /* eslint-disable @typescript-eslint/no-explicit-any -- Confluence payloads are untyped JSON */
 
@@ -30,6 +30,26 @@ export function slimPage(p: any, baseUrl: string): SlimPage {
     ...(p.version?.number !== undefined && { version: p.version.number }),
     ...(p.version?.when && { lastModified: p.version.when }),
     url: baseUrl + (p._links?.webui ?? ""),
+  };
+}
+
+export interface SlimConfluenceComment {
+  id: string;
+  author?: string;
+  created?: string;
+  parentId?: string;
+  body: string;
+}
+
+export function slimConfluenceComment(c: any): SlimConfluenceComment {
+  const anc: any[] = c.ancestors ?? [];
+  const author = c.history?.createdBy?.username;
+  return {
+    id: c.id,
+    ...(author && { author }),
+    ...(c.history?.createdDate && { created: c.history.createdDate }),
+    ...(anc.length > 0 && { parentId: anc[anc.length - 1].id }),
+    body: storageToMarkdown(c.body?.storage?.value ?? ""),
   };
 }
 
