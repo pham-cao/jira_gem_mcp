@@ -156,7 +156,7 @@ export function register(ctx: ToolContext): void {
       }
       const value = args.body !== undefined ? toStorage(args.body, args.format) : curStorage;
       const res = await c.put<any>(`/rest/api/content/${args.pageId}`, {
-        type: "page",
+        type: cur.type ?? "page", // blog posts found via CQL keep their type
         title: args.title ?? cur.title,
         version: { number: current + 1, minorEdit: args.minorEdit },
         body: { storage: { value, representation: "storage" } },

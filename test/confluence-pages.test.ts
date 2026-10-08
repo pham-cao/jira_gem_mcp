@@ -286,6 +286,19 @@ describe("confluence page tools", () => {
     });
   });
 
+  it("confluence_update_page keeps the content type of a blog post", async () => {
+    let body: any; // eslint-disable-line @typescript-eslint/no-explicit-any
+    mswServer.use(
+      http.get(`${CAPI}/content/123`, () => HttpResponse.json(page({ type: "blogpost" }))),
+      http.put(`${CAPI}/content/123`, async ({ request }) => {
+        body = await request.json();
+        return HttpResponse.json(page({ type: "blogpost", version: { number: 5 } }));
+      }),
+    );
+    await (await h()).json("confluence_update_page", { pageId: "123", body: "New" });
+    expect(body.type).toBe("blogpost");
+  });
+
   it("confluence_get_page warns not to write back a truncated body", async () => {
     mswServer.use(http.get(`${CAPI}/content/123`, () => HttpResponse.json(page())));
     const harness = await h();
