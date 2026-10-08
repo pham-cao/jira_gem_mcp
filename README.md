@@ -79,6 +79,8 @@ Khi khởi động, server gọi `/rest/api/2/myself` để kiểm tra đăng nh
 
 ## Danh sách tool
 
+> Mô tả chi tiết tham số, kết quả và ví dụ của từng tool: **[docs/tools.md](docs/tools.md)**.
+
 **Đọc:** `jira_search` (JQL), `jira_get_issue`, `jira_get_comments`, `jira_get_worklogs`, `jira_get_transitions`, `jira_list_projects`, `jira_get_create_meta`, `jira_search_fields`, `jira_search_users`, `jira_list_link_types`, `jira_download_attachment`
 
 **Ghi** (tắt khi `JIRA_READ_ONLY=true`): `jira_create_issue`, `jira_update_issue`, `jira_assign_issue`, `jira_transition_issue`, `jira_add_comment`, `jira_update_comment`, `jira_add_worklog`, `jira_link_issues`, `jira_upload_attachment`
