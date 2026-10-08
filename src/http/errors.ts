@@ -92,6 +92,10 @@ function formatPlainError(err: unknown): string {
   return `Lỗi kết nối tới ${service}: ${err.message} (${detail})${hint}`;
 }
 
+// Confluence page/comment writes carry storage XHTML; attachment and label sub-paths do not.
+const isContentWrite = (err: HttpError) =>
+  (err.method === "POST" || err.method === "PUT") && err.path.startsWith("/rest/api/content") && !/\/child\/attachment|\/label/.test(err.path);
+
 export function formatError(err: unknown): string {
   if (!(err instanceof HttpError)) return formatPlainError(err);
   if (err.captcha) return `Tài khoản đang bị yêu cầu CAPTCHA — đăng nhập ${err.service} trên trình duyệt một lần để mở khoá.`;
@@ -101,9 +105,11 @@ export function formatError(err: unknown): string {
         "Yêu cầu không hợp lệ (400):",
         ...err.messages,
         ...Object.entries(err.fieldErrors).map(([k, v]) => `- ${k}: ${v}`),
-        err.service === "Confluence"
-          ? 'Gợi ý: nội dung storage XHTML có thể không hợp lệ; thử format: "markdown".'
-          : "Gợi ý: dùng jira_get_create_meta hoặc jira_search_fields để kiểm tra field.",
+        ...(err.service === "Jira"
+          ? ["Gợi ý: dùng jira_get_create_meta hoặc jira_search_fields để kiểm tra field."]
+          : isContentWrite(err)
+            ? ['Gợi ý: nội dung storage XHTML có thể không hợp lệ; thử format: "markdown".']
+            : []),
       ].join("\n");
     case 401:
       return "Xác thực thất bại: sai username/password.";

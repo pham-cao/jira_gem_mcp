@@ -31,8 +31,21 @@ describe("HttpError (Confluence)", () => {
     expect(formatError(e)).toBe("Tài khoản đang bị yêu cầu CAPTCHA — đăng nhập Confluence trên trình duyệt một lần để mở khoá.");
   });
   it("formats Confluence 400 with a storage hint", () => {
-    expect(formatError(mk(400, { service: "Confluence", messages: ["bad xhtml"] }))).toBe(
+    expect(formatError(mk(400, { service: "Confluence", method: "PUT", messages: ["bad xhtml"] }))).toBe(
       'Yêu cầu không hợp lệ (400):\nbad xhtml\nGợi ý: nội dung storage XHTML có thể không hợp lệ; thử format: "markdown".');
+  });
+  it("adds the storage hint on a Confluence content POST", () => {
+    expect(formatError(mk(400, { service: "Confluence", method: "POST", path: "/rest/api/content", messages: ["bad"] }))).toBe(
+      'Yêu cầu không hợp lệ (400):\nbad\nGợi ý: nội dung storage XHTML có thể không hợp lệ; thử format: "markdown".');
+  });
+  it.each([
+    ["GET", "/rest/api/content/search"],
+    ["GET", "/rest/api/content/1"],
+    ["POST", "/rest/api/content/1/label"],
+    ["POST", "/rest/api/content/1/child/attachment"],
+    ["GET", "/rest/api/space"],
+  ])("omits the storage hint for Confluence %s %s", (method, path) => {
+    expect(formatError(mk(400, { service: "Confluence", method, path, messages: ["bad cql"] }))).toBe("Yêu cầu không hợp lệ (400):\nbad cql");
   });
   it("formats 409 as a version conflict", () => {
     expect(formatError(mk(409, { service: "Confluence" }))).toBe(
