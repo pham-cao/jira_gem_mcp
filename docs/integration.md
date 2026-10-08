@@ -28,13 +28,13 @@ Trước khi bắt đầu, hãy đăng nhập Jira trên trình duyệt một l�
 
 ## 2. Chọn cách chạy server
 
-Mọi client đều chạy server bằng một lệnh. Chọn một trong hai cách dưới đây; các ví dụ ở phần sau dùng **cách A**. Với cách B, thay `npx -y git+https://…` bằng `node /đường/dẫn/jira-mcp/dist/index.js`.
+Mọi client đều chạy server bằng một lệnh. Chọn một trong hai cách dưới đây; các ví dụ ở phần sau dùng **cách A**. Với cách B, thay `npx -y git+https://…` bằng `node /đường/dẫn/jira_gem_mcp/dist/index.js`.
 
 **Cách A — `npx` từ git (không cần clone)**
 
 ```
 command: npx
-args:    -y git+https://<git-nội-bộ>/jira-mcp.git
+args:    -y git+https://github.com/pham-cao/jira_gem_mcp.git
 ```
 
 Lần chạy đầu, npm tải mã nguồn và tự build (mất khoảng 30–60 giây). Các lần sau dùng bản đã cache. Muốn ghim một phiên bản, thêm `#<tag>` hoặc `#<commit>` vào cuối URL.
@@ -42,13 +42,13 @@ Lần chạy đầu, npm tải mã nguồn và tự build (mất khoảng 30–6
 **Cách B — clone và build**
 
 ```bash
-git clone https://<git-nội-bộ>/jira-mcp.git ~/tools/jira-mcp
-cd ~/tools/jira-mcp && npm ci && npm run build
+git clone https://github.com/pham-cao/jira_gem_mcp.git ~/tools/jira_gem_mcp
+cd ~/tools/jira_gem_mcp && npm ci && npm run build
 ```
 
 ```
 command: node
-args:    /home/<bạn>/tools/jira-mcp/dist/index.js
+args:    /home/<bạn>/tools/jira_gem_mcp/dist/index.js
 ```
 
 Cách B khởi động nhanh hơn và không phụ thuộc mạng git khi chạy. Nên dùng nếu `npx` bị timeout ở client.
@@ -73,7 +73,7 @@ claude mcp add jira --scope user \
   -e JIRA_BASE_URL=https://pm.gem-corp.tech \
   -e JIRA_USERNAME=<username> \
   -e JIRA_PASSWORD='<password>' \
-  -- npx -y git+https://<git-nội-bộ>/jira-mcp.git
+  -- npx -y git+https://github.com/pham-cao/jira_gem_mcp.git
 ```
 
 - Luôn đặt `--` trước lệnh chạy server. `-e` nhận nhiều giá trị, nên thiếu `--` thì lệnh sẽ bị hiểu nhầm là biến môi trường.
@@ -101,7 +101,7 @@ Commit file `.mcp.json` ở gốc repo, **không có mật khẩu**, và đọc 
   "mcpServers": {
     "jira": {
       "command": "npx",
-      "args": ["-y", "git+https://<git-nội-bộ>/jira-mcp.git"],
+      "args": ["-y", "git+https://github.com/pham-cao/jira_gem_mcp.git"],
       "env": {
         "JIRA_BASE_URL": "https://pm.gem-corp.tech",
         "JIRA_USERNAME": "${JIRA_USERNAME}",
@@ -140,7 +140,7 @@ Mở **Settings → Developer → Edit Config**, hoặc mở trực tiếp file:
   "mcpServers": {
     "jira": {
       "command": "npx",
-      "args": ["-y", "git+https://<git-nội-bộ>/jira-mcp.git"],
+      "args": ["-y", "git+https://github.com/pham-cao/jira_gem_mcp.git"],
       "env": {
         "JIRA_BASE_URL": "https://pm.gem-corp.tech",
         "JIRA_USERNAME": "<username>",
@@ -172,7 +172,7 @@ Tạo `.vscode/mcp.json` trong workspace (hoặc chạy lệnh **MCP: Open User 
     "jira": {
       "type": "stdio",
       "command": "npx",
-      "args": ["-y", "git+https://<git-nội-bộ>/jira-mcp.git"],
+      "args": ["-y", "git+https://github.com/pham-cao/jira_gem_mcp.git"],
       "env": {
         "JIRA_BASE_URL": "https://pm.gem-corp.tech",
         "JIRA_USERNAME": "${input:jira-username}",
@@ -194,7 +194,7 @@ Tạo `~/.cursor/mcp.json` (cho mọi project) hoặc `.cursor/mcp.json` (cho m�
   "mcpServers": {
     "jira": {
       "command": "npx",
-      "args": ["-y", "git+https://<git-nội-bộ>/jira-mcp.git"],
+      "args": ["-y", "git+https://github.com/pham-cao/jira_gem_mcp.git"],
       "env": {
         "JIRA_BASE_URL": "https://pm.gem-corp.tech",
         "JIRA_USERNAME": "<username>",
@@ -213,7 +213,7 @@ Dùng để thử từng tool mà không cần client AI:
 
 ```bash
 JIRA_BASE_URL=https://pm.gem-corp.tech JIRA_USERNAME=<u> JIRA_PASSWORD='<p>' \
-  npx @modelcontextprotocol/inspector npx -y git+https://<git-nội-bộ>/jira-mcp.git
+  npx @modelcontextprotocol/inspector npx -y git+https://github.com/pham-cao/jira_gem_mcp.git
 ```
 
 Inspector mở trên trình duyệt. Vào tab **Tools**, chọn `jira_search` và nhập `{"jql": "assignee = currentUser()"}`.
@@ -290,9 +290,9 @@ Server ghi log ra stderr với tiền tố `[jira-mcp]`. Xem bằng `claude --de
 - Server không bao giờ log mật khẩu, không tự thử lại khi sai mật khẩu, và không gửi thông tin đăng nhập tới host khác `JIRA_BASE_URL`.
 - Khi đổi mật khẩu Jira, nhớ cập nhật mọi nơi đã cấu hình.
 - MCP không có tool xoá (issue, comment, worklog, attachment, sprint). Các thao tác không hoàn tác được hãy làm trên web.
-- Claude Code mặc định hỏi trước mỗi lần gọi tool. Chỉ nên cho phép tự động các tool đọc.
+- Claude Code mặc định hỏi trước mỗi lần gọi tool. Chỉ nên cho phép tự động các tool đọc, **trừ** `jira_download_attachment`: tool này ghi file vào đường dẫn local bất kỳ. Cũng không tự động cho phép `jira_upload_attachment`, vì nó đọc file local bất kỳ. Nội dung Jira có thể chứa prompt injection nhằm ghi đè hoặc lấy file trên máy bạn.
 
 ## 12. Cập nhật phiên bản
 
-- **Cách A (`npx`)**: npx cache theo URL. Để lấy bản mới, ghim tag mới trong URL (`…jira-mcp.git#v0.2.0`), hoặc xoá cache bằng `rm -rf ~/.npm/_npx` rồi khởi động lại client.
+- **Cách A (`npx`)**: npx cache theo URL. Để lấy bản mới, ghim tag mới trong URL (`…jira_gem_mcp.git#v0.2.0`), hoặc xoá cache bằng `rm -rf ~/.npm/_npx` rồi khởi động lại client.
 - **Cách B (clone)**: `git pull && npm ci && npm run build`, rồi khởi động lại client.

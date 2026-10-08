@@ -22,7 +22,7 @@ Thêm vào `.mcp.json` của project hoặc `~/.claude.json`:
   "mcpServers": {
     "jira": {
       "command": "npx",
-      "args": ["-y", "git+https://<git-nội-bộ>/jira-mcp.git"],
+      "args": ["-y", "git+https://github.com/pham-cao/jira_gem_mcp.git"],
       "env": {
         "JIRA_BASE_URL": "https://pm.gem-corp.tech",
         "JIRA_USERNAME": "<username>",
@@ -36,8 +36,8 @@ Thêm vào `.mcp.json` của project hoặc `~/.claude.json`:
 ### Cách B — clone và build
 
 ```bash
-git clone https://<git-nội-bộ>/jira-mcp.git
-cd jira-mcp && npm ci && npm run build
+git clone https://github.com/pham-cao/jira_gem_mcp.git
+cd jira_gem_mcp && npm ci && npm run build
 ```
 
 ```json
@@ -45,7 +45,7 @@ cd jira-mcp && npm ci && npm run build
   "mcpServers": {
     "jira": {
       "command": "node",
-      "args": ["/đường/dẫn/jira-mcp/dist/index.js"],
+      "args": ["/đường/dẫn/jira_gem_mcp/dist/index.js"],
       "env": {
         "JIRA_BASE_URL": "https://pm.gem-corp.tech",
         "JIRA_USERNAME": "<username>",
@@ -56,7 +56,7 @@ cd jira-mcp && npm ci && npm run build
 }
 ```
 
-Hoặc dùng lệnh: `claude mcp add jira -e JIRA_BASE_URL=https://pm.gem-corp.tech -e JIRA_USERNAME=<u> -e JIRA_PASSWORD=<p> -- node /đường/dẫn/jira-mcp/dist/index.js`
+Hoặc dùng lệnh: `claude mcp add jira -e JIRA_BASE_URL=https://pm.gem-corp.tech -e JIRA_USERNAME=<u> -e JIRA_PASSWORD=<p> -- node /đường/dẫn/jira_gem_mcp/dist/index.js`
 
 ## Cấu hình
 
@@ -76,6 +76,9 @@ Khi khởi động, server gọi `/rest/api/2/myself` để kiểm tra đăng nh
 - Mật khẩu nằm dạng plain text trong file cấu hình MCP. **Không commit** `.mcp.json`, `~/.claude.json` hay `.env` chứa mật khẩu lên git.
 - Nhập sai mật khẩu nhiều lần, Jira sẽ yêu cầu CAPTCHA và mọi request API đều bị từ chối. Khi đó hãy đăng nhập Jira trên trình duyệt một lần để mở khoá.
 - Server không retry khi lỗi xác thực, và không gửi thông tin đăng nhập tới host khác `JIRA_BASE_URL`.
+- `jira_download_attachment` (ghi file) và `jira_upload_attachment` (đọc file) nhận **đường dẫn local bất kỳ**, không giới hạn thư mục. Nội dung Jira (description, comment do người khác viết) có thể chứa prompt injection, dụ model ghi đè file nhạy cảm (vd `~/.bashrc`) hoặc upload file bí mật (vd `~/.ssh/id_rsa`) lên issue. **Luôn đọc kỹ tham số đường dẫn trước khi duyệt hai tool này**, không đưa chúng vào danh sách tự động cho phép.
+- `jira_download_attachment` vẫn bật khi `JIRA_READ_ONLY=true`, vì nó chỉ đọc từ Jira dù có ghi file trên máy.
+- `JIRA_INSECURE_TLS=true` tắt kiểm tra chứng chỉ TLS cho cả tiến trình, nên dễ bị tấn công MITM. Nên ưu tiên `NODE_EXTRA_CA_CERTS=/đường/dẫn/ca.pem` để tin CA nội bộ.
 
 ## Danh sách tool
 
