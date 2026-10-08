@@ -4,6 +4,7 @@ import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import type { CallToolResult } from "@modelcontextprotocol/sdk/types.js";
 import { setupServer } from "msw/node";
 import { afterAll, afterEach, beforeAll } from "vitest";
+import { HttpClient } from "../src/http/client.js";
 import { JiraClient } from "../src/jira/client.js";
 import { FieldCache } from "../src/jira/fields.js";
 import type { ToolContext } from "../src/tools/define.js";
@@ -11,6 +12,9 @@ import type { ToolContext } from "../src/tools/define.js";
 export const BASE_URL = "https://jira.test/ctx";
 export const API = `${BASE_URL}/rest/api/2`;
 export const AGILE = `${BASE_URL}/rest/agile/1.0`;
+
+export const CONF_BASE = "https://conf.test/wiki";
+export const CAPI = `${CONF_BASE}/rest/api`;
 
 export const mswServer = setupServer();
 
@@ -27,6 +31,13 @@ export function makeClient(overrides: { password?: string; timeoutMs?: number } 
   );
 }
 
+export function makeConfluenceClient(): HttpClient {
+  return new HttpClient(
+    { baseUrl: CONF_BASE, username: "alice", password: "s3cret", timeoutMs: 200, service: "Confluence" },
+    { retryDelayMs: 0 },
+  );
+}
+
 export interface Harness {
   client: Client;
   call(name: string, args?: Record<string, unknown>): Promise<CallToolResult>;
@@ -35,10 +46,11 @@ export interface Harness {
   toolNames(): Promise<string[]>;
 }
 
-export async function connectTools(registers: Array<(ctx: ToolContext) => void>, opts: { readOnly?: boolean } = {}): Promise<Harness> {
+export async function connectTools(registers: Array<(ctx: ToolContext) => void>, opts: { readOnly?: boolean; confluence?: boolean } = {}): Promise<Harness> {
   const server = new McpServer({ name: "test", version: "0.0.0" });
   const jira = makeClient();
   const ctx: ToolContext = { server, client: jira, fields: new FieldCache(jira), readOnly: opts.readOnly ?? false };
+  if (opts.confluence) ctx.confluence = makeConfluenceClient();
   for (const register of registers) register(ctx);
   return connectServer(server);
 }

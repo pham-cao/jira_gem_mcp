@@ -15,6 +15,24 @@ describe("loadConfig", () => {
     });
   });
 
+  it("reuses Jira credentials for Confluence by default", () => {
+    expect(loadConfig({ ...base, CONFLUENCE_BASE_URL: "https://conf.gem-corp.tech/" }).confluence)
+      .toEqual({ baseUrl: "https://conf.gem-corp.tech", username: "u", password: "p" });
+  });
+  it("lets CONFLUENCE_USERNAME/PASSWORD override", () => {
+    expect(loadConfig({ ...base, CONFLUENCE_BASE_URL: "https://c", CONFLUENCE_USERNAME: "cu", CONFLUENCE_PASSWORD: "cp" }).confluence)
+      .toMatchObject({ username: "cu", password: "cp" });
+  });
+  it("omits confluence when CONFLUENCE_BASE_URL is unset", () => {
+    expect("confluence" in loadConfig(base)).toBe(false);
+  });
+  it.each(["CONFLUENCE_USERNAME", "CONFLUENCE_PASSWORD"])("rejects %s without CONFLUENCE_BASE_URL", (k) => {
+    expect(() => loadConfig({ ...base, [k]: "x" })).toThrow(/CONFLUENCE_BASE_URL/);
+  });
+  it("validates CONFLUENCE_BASE_URL as http(s)", () => {
+    expect(() => loadConfig({ ...base, CONFLUENCE_BASE_URL: "ftp://c" })).toThrow(/CONFLUENCE_BASE_URL/);
+  });
+
   it.each(["JIRA_BASE_URL", "JIRA_USERNAME", "JIRA_PASSWORD"])("throws ConfigError naming missing %s", (k) => {
     expect(() => loadConfig({ ...base, [k]: undefined })).toThrow(ConfigError);
     expect(() => loadConfig({ ...base, [k]: "" })).toThrow(new RegExp(k));
