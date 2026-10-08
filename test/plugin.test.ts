@@ -1,4 +1,4 @@
-import { existsSync, readFileSync } from "node:fs";
+import { existsSync, readFileSync, readdirSync } from "node:fs";
 import { resolve } from "node:path";
 import { describe, expect, it } from "vitest";
 
@@ -21,6 +21,8 @@ describe("plugin packaging", () => {
     expect(uc.jira_base_url.default).toBe("https://pm.gem-corp.tech");
     expect(uc.confluence_base_url.default).toBe("https://conf.gem-corp.tech");
     expect(uc.password.sensitive).toBe(true);
+    expect(uc.username.required).toBe(true);
+    expect(uc.password.required).toBe(true);
   });
 
   it("marketplace.json", () => {
@@ -42,5 +44,18 @@ describe("plugin packaging", () => {
 
   it("dist/index.js exists", () => {
     expect(existsSync(resolve(root, "dist/index.js"))).toBe(true);
+  });
+
+  it("every src/**/*.ts has a matching dist/**/*.js", () => {
+    const walk = (d: string): string[] =>
+      readdirSync(resolve(root, d), { withFileTypes: true }).flatMap((e) =>
+        e.isDirectory() ? walk(`${d}/${e.name}`) : [`${d}/${e.name}`],
+      );
+    const srcs = walk("src").filter((f) => f.endsWith(".ts") && !f.endsWith(".d.ts"));
+    expect(srcs.length).toBeGreaterThan(0);
+    for (const f of srcs) {
+      const js = f.replace(/^src\//, "dist/").replace(/\.ts$/, ".js");
+      expect(existsSync(resolve(root, js)), js).toBe(true);
+    }
   });
 });
