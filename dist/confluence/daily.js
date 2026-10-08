@@ -144,6 +144,7 @@ function cellAt(row, col) {
     }
     return undefined;
 }
+const ambiguous = (date) => new DailyError("layout", `Bảng daily có cột ngày ${date} không rõ ràng (ô tiêu đề gộp cột hoặc ngày xuất hiện nhiều lần) nên không xác định chắc chắn được ô cần điền. Hãy điền thủ công trên Confluence.`);
 /** Finds the current user's cell for `date`. Throws DailyError (copy fixed in spec §3.4). */
 export function locateDailyCell(storage, date, userKey) {
     const tables = scanTables(storage);
@@ -155,17 +156,27 @@ export function locateDailyCell(storage, date, userKey) {
             continue;
         let col = -1;
         let at = 0;
+        let hits = 0;
+        let wide = false;
         for (const c of header) {
             const inner = innerOf(storage, c);
             for (const m of inner.matchAll(/datetime="(\d{4}-\d{2}-\d{2})/g))
                 if (!known.includes(m[1]))
                     known.push(m[1]);
-            if (col < 0 && inner.includes(dateAttr))
-                col = at;
+            if (inner.includes(dateAttr)) {
+                hits++;
+                if (c.colspan > 1)
+                    wide = true;
+                if (col < 0)
+                    col = at;
+            }
             at += c.colspan;
         }
         if (col < 0)
             continue;
+        // A merged title cell, a repeated date or a date in the name column would point at the wrong cell (possibly the name cell).
+        if (wide || hits > 1)
+            throw ambiguous(date);
         for (const [i, r] of t.rows.entries()) {
             if (r === header || !r.length)
                 continue;
@@ -180,6 +191,8 @@ export function locateDailyCell(storage, date, userKey) {
             const target = cellAt(r, col);
             if (!target)
                 continue;
+            if (target === r[0])
+                throw ambiguous(date);
             const label = /<ac:plain-text-link-body><!\[CDATA\[([\s\S]*?)\]\]><\/ac:plain-text-link-body>/.exec(first.slice(who.at));
             return {
                 innerStart: target.innerStart,

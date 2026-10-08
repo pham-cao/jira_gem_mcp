@@ -119,6 +119,46 @@ describe("locateDailyCell", () => {
     expect(cell.rowLabel).toBe("Cao PV");
   });
 
+  const AMBIGUOUS = (d: string): string =>
+    `Bảng daily có cột ngày ${d} không rõ ràng (ô tiêu đề gộp cột hoặc ngày xuất hiện nhiều lần) nên không xác định chắc chắn được ô cần điền. Hãy điền thủ công trên Confluence.`;
+
+  it("fails closed when the date sits in a colspan title header above the date row", () => {
+    const storage =
+      `<table><tbody><tr><th colspan="4">Sprint <time datetime="2026-10-12" /> – <time datetime="2026-10-16" /></th></tr>` +
+      `<tr><th><br /></th><th>Role</th><th><time datetime="2026-10-12" /></th><th><time datetime="2026-10-13" /></th></tr>` +
+      `<tr><td><p>${mention(ME, "Cao PV")}</p></td><td>BE</td><td>MINE12</td><td>MINE13</td></tr></tbody></table>`;
+    const e = catchErr(() => locateDailyCell(storage, "2026-10-12", ME));
+    expect(e.code).toBe("layout");
+    expect(e.message).toBe(AMBIGUOUS("2026-10-12"));
+  });
+
+  it("fails closed when the matching date header cell spans several columns", () => {
+    const storage =
+      `<table><tbody><tr><th><br /></th><th>Role</th><th colspan="2"><time datetime="2026-10-08" /></th></tr>` +
+      `<tr><td><p>${mention(ME, "Cao PV")}</p></td><td>BE</td><td>M1</td><td>M2</td></tr></tbody></table>`;
+    const e = catchErr(() => locateDailyCell(storage, "2026-10-08", ME));
+    expect(e.code).toBe("layout");
+    expect(e.message).toBe(AMBIGUOUS("2026-10-08"));
+  });
+
+  it("fails closed when the date is in the first header cell (target would be the name cell)", () => {
+    const storage =
+      `<table><tbody><tr><th>Daily <time datetime="2026-10-08" /></th><th>Role</th><th>Ghi chú</th></tr>` +
+      `<tr><td><p>${mention(ME, "Cao PV")}</p></td><td>BE</td><td>NOTE</td></tr></tbody></table>`;
+    const e = catchErr(() => locateDailyCell(storage, "2026-10-08", ME));
+    expect(e.code).toBe("layout");
+    expect(e.message).toBe(AMBIGUOUS("2026-10-08"));
+  });
+
+  it("fails closed when the date appears in more than one header cell", () => {
+    const storage =
+      `<table><tbody><tr><th><br /></th><th>Role</th><th><time datetime="2026-10-08" /></th><th><time datetime="2026-10-08" /> (bù)</th></tr>` +
+      `<tr><td><p>${mention(ME, "Cao PV")}</p></td><td>BE</td><td>M1</td><td>M2</td></tr></tbody></table>`;
+    const e = catchErr(() => locateDailyCell(storage, "2026-10-08", ME));
+    expect(e.code).toBe("layout");
+    expect(e.message).toBe(AMBIGUOUS("2026-10-08"));
+  });
+
   it("skips CDATA and comments that look like tags", () => {
     const page = DAILY_PAGE.replace("<p>Daily meeting sprint 1.</p>", '<!-- <table><tr><th><time datetime="2026-10-10" /></th></tr></table> --><ac:plain-text-body><![CDATA[<td>]]></ac:plain-text-body>');
     expect(catchErr(() => locateDailyCell(page, "2026-10-10", ME)).code).toBe("no-date");
