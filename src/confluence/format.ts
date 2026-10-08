@@ -17,6 +17,7 @@ export interface ConfluencePaged<T> {
   start: number;
   limit: number;
   size: number;
+  total?: number;
   hasMore: boolean;
 }
 
@@ -32,8 +33,8 @@ export function slimPage(p: any, baseUrl: string): SlimPage {
   };
 }
 
-export function confluencePaged<T>(items: T[], r: { start: number; limit: number; size: number; _links?: { next?: string } }): ConfluencePaged<T> {
-  return { items, start: r.start, limit: r.limit, size: r.size, hasMore: Boolean(r._links?.next) };
+export function confluencePaged<T>(items: T[], r: { start: number; limit: number; size: number; totalSize?: number; _links?: { next?: string } }): ConfluencePaged<T> {
+  return { items, start: r.start, limit: r.limit, size: r.size, ...(typeof r.totalSize === "number" && { total: r.totalSize }), hasMore: Boolean(r._links?.next) };
 }
 
 export function toStorage(body: string, format: "markdown" | "storage"): string {

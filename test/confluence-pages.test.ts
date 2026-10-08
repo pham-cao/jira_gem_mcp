@@ -42,6 +42,17 @@ describe("confluence page tools", () => {
     });
   });
 
+  it("confluence_search includes total only when totalSize is a number", async () => {
+    let total: number | undefined = 42;
+    mswServer.use(
+      http.get(`${CAPI}/content/search`, () => HttpResponse.json({ results: [], start: 0, limit: 25, size: 0, ...(total !== undefined && { totalSize: total }) })),
+    );
+    const harness = await h();
+    expect((await harness.json("confluence_search", { cql: "type=page" })).total).toBe(42);
+    total = undefined;
+    expect("total" in (await harness.json("confluence_search", { cql: "type=page" }))).toBe(false);
+  });
+
   it("confluence_get_page by id returns Markdown, version and ancestors", async () => {
     let params: URLSearchParams | undefined;
     mswServer.use(
