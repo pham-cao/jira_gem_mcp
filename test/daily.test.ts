@@ -69,9 +69,54 @@ describe("locateDailyCell", () => {
       expect(a.innerStart).toBe(b.innerStart + NESTED_TABLE.length);
       expect(a.inner).toBe(b.inner);
     }
-    // The nested <time datetime="2026-10-09" /> does not add a column.
-    const e = catchErr(() => locateDailyCell(DAILY_PAGE, "2026-10-10", ME));
+    // The nested <time datetime="2026-10-11" /> does not add a column.
+    expect(NESTED_TABLE).toContain('datetime="2026-10-11"');
+    const e = catchErr(() => locateDailyCell(DAILY_PAGE, "2026-10-11", ME));
+    expect(e.code).toBe("no-date");
     expect(e.message).toContain("Các ngày hiện có: 2026-10-07, 2026-10-08, 2026-10-09.");
+  });
+
+  const mention = (key: string, name: string): string =>
+    `<ac:link><ri:user ri:userkey="${key}" /><ac:plain-text-link-body><![CDATA[${name}]]></ac:plain-text-link-body></ac:link>`;
+  const page = (rows: string): string =>
+    `<table><tbody><tr><th><br /></th><th>Role</th><th><time datetime="2026-10-07" /></th><th><time datetime="2026-10-08" /></th><th><time datetime="2026-10-09" /></th></tr>${rows}</tbody></table>`;
+  const myRow = `<tr><td><p>${mention(ME, "Cao PV")}</p></td><td>BE</td><td>MINE07</td><td>MINE08</td><td>MINE09</td></tr>`;
+
+  it("fails closed with code layout when the table uses rowspan", () => {
+    const storage = page(`<tr><td><p>${mention("mate-a-key", "A")}</p></td><td rowspan="2">BE</td><td>A07</td><td>A08</td><td>A09</td></tr>${myRow}`);
+    const e = catchErr(() => locateDailyCell(storage, "2026-10-08", ME));
+    expect(e.code).toBe("layout");
+    expect(e.message).toBe("Bảng daily có ô gộp nhiều hàng (rowspan) nên không xác định chắc chắn được ô cần điền. Hãy điền thủ công trên Confluence.");
+  });
+
+  it("ignores rowspan=1", () => {
+    const storage = page(`<tr><td><p>${mention("mate-a-key", "A")}</p></td><td rowspan="1">BE</td><td>A07</td><td>A08</td><td>A09</td></tr>${myRow}`);
+    expect(locateDailyCell(storage, "2026-10-08", ME).inner).toBe("MINE08");
+  });
+
+  it("pairfirst: a teammate's first cell mentioning me after their own mention is not my row", () => {
+    const mate = `<tr><td><p>${mention("mate-a-key", "Mate A")} (backup ${mention(ME, "Cao PV")})</p></td><td>FE</td><td>A07</td><td>A08</td><td>A09</td></tr>`;
+    const cell = locateDailyCell(page(mate + myRow), "2026-10-08", ME);
+    expect(cell.inner).toBe("MINE08");
+    expect(cell.rowLabel).toBe("Cao PV");
+    expect(catchErr(() => locateDailyCell(page(mate), "2026-10-08", ME)).code).toBe("no-row");
+  });
+
+  it("nestedfirst: a mention of me inside a nested table in a teammate's first cell is ignored", () => {
+    const nested = `<table><tbody><tr><td>${mention(ME, "Cao PV")}</td></tr></tbody></table>`;
+    const mate = `<tr><td><div class="content-wrapper">${nested}<p>${mention("mate-b-key", "Mate B")}</p></div></td><td>QA</td><td>B07</td><td>B08</td><td>B09</td></tr>`;
+    const cell = locateDailyCell(page(mate + myRow), "2026-10-08", ME);
+    expect(cell.inner).toBe("MINE08");
+    expect(cell.rowLabel).toBe("Cao PV");
+    expect(catchErr(() => locateDailyCell(page(mate), "2026-10-08", ME)).code).toBe("no-row");
+  });
+
+  it("takes rowLabel from the owner mention, not a nested-table mention before it", () => {
+    const nested = `<table><tbody><tr><td>${mention("mate-b-key", "Mate B")}</td></tr></tbody></table>`;
+    const mine = `<tr><td><div class="content-wrapper">${nested}<p>${mention(ME, "Cao PV")}</p></div></td><td>BE</td><td>M07</td><td>M08</td><td>M09</td></tr>`;
+    const cell = locateDailyCell(page(mine), "2026-10-08", ME);
+    expect(cell.inner).toBe("M08");
+    expect(cell.rowLabel).toBe("Cao PV");
   });
 
   it("skips CDATA and comments that look like tags", () => {

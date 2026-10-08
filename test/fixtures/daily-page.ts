@@ -12,7 +12,7 @@ const filled = (a: string, b: string): string =>
 // Nested table inside a teammate's 2026-10-07 cell; its <time> must not create a column, its <tr>/<td> must not shift counting.
 export const NESTED_TABLE =
   `<table class="wrapped"><colgroup><col /><col /></colgroup><tbody><tr><th>Mốc</th><th>Ngày</th></tr>` +
-  `<tr><td>Demo</td><td><div class="content-wrapper"><p><time datetime="2026-10-09" />&nbsp;</p></div></td></tr></tbody></table>`;
+  `<tr><td>Demo</td><td><div class="content-wrapper"><p><time datetime="2026-10-11" />&nbsp;</p></div></td></tr></tbody></table>`;
 
 export const DAILY_PAGE =
   `<p>Daily meeting sprint 1.</p>` +

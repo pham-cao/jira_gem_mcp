@@ -24,7 +24,7 @@ export interface DailyCell {
 
 export class DailyError extends Error {
   constructor(
-    readonly code: "no-date" | "no-row",
+    readonly code: "no-date" | "no-row" | "layout",
     message: string,
   ) {
     super(message);
@@ -74,6 +74,7 @@ interface Cell {
   tag: string;
   openTag: string;
   colspan: number;
+  rowspan: number;
   selfClosing: boolean;
   // For self-closing cells: the whole tag's span. Otherwise: inner content span.
   innerStart: number;
@@ -134,10 +135,12 @@ function scanTables(s: string): Table[] {
     closeCell(start);
     if (!row) table.rows.push((row = []));
     const span = /\bcolspan\s*=\s*["']?(\d+)/i.exec(attrs);
+    const rspan = /\browspan\s*=\s*["']?(\d+)/i.exec(attrs);
     const cell: Cell = {
       tag: rawName,
       openTag: selfSlash ? text.replace(/\s*\/>$/, ">") : text,
       colspan: span ? Math.max(1, Number(span[1])) : 1,
+      rowspan: rspan ? Math.max(1, Number(rspan[1])) : 1,
       selfClosing: !!selfSlash,
       innerStart: selfSlash ? start : end,
       innerEnd: end,
@@ -147,6 +150,24 @@ function scanTables(s: string): Table[] {
   }
   closeCell(s.length);
   return tables;
+}
+
+// First `ri:user` outside nested tables; CDATA and comments skipped.
+const OWNER = /<!\[CDATA\[[\s\S]*?\]\]>|<!--[\s\S]*?-->|<(\/?)(table|ri:user)\b((?:[^>"']|"[^"]*"|'[^']*')*?)(\/?)>/gi;
+
+/** Row owner: the first mention in the first cell, ignoring nested tables. `at` = offset of its `ri:user` tag. */
+function owner(firstInner: string): { key?: string; at: number } | undefined {
+  let depth = 0;
+  for (const m of firstInner.matchAll(OWNER)) {
+    if (!m[2]) continue;
+    if (m[2].toLowerCase() === "table") {
+      if (!m[4]) depth = m[1] ? Math.max(0, depth - 1) : depth + 1;
+      continue;
+    }
+    if (m[1] || depth) continue;
+    return { key: /\bri:userkey\s*=\s*"([^"]*)"/i.exec(m[3])?.[1], at: m.index! };
+  }
+  return undefined;
 }
 
 const innerOf = (s: string, c: Cell): string => (c.selfClosing ? "" : s.slice(c.innerStart, c.innerEnd));
@@ -166,7 +187,6 @@ export function locateDailyCell(storage: string, date: string, userKey: string):
   const tables = scanTables(storage);
   const known: string[] = [];
   const dateAttr = `datetime="${date}"`;
-  const keyAttr = `ri:userkey="${userKey}"`;
   for (const t of tables) {
     const header = t.rows.find((r) => r.some((c) => c.tag.toLowerCase() === "th"));
     if (!header) continue;
@@ -179,13 +199,18 @@ export function locateDailyCell(storage: string, date: string, userKey: string):
       at += c.colspan;
     }
     if (col < 0) continue;
-    for (const r of t.rows) {
+    for (const [i, r] of t.rows.entries()) {
       if (r === header || !r.length) continue;
       const first = innerOf(storage, r[0]);
-      if (!first.includes(keyAttr)) continue;
+      const who = owner(first);
+      if (!who || who.key !== userKey) continue;
+      // Rowspan shifts column positions in later rows; fail closed rather than risk writing a teammate's cell.
+      if (t.rows.slice(0, i + 1).some((row) => row.some((c) => c.rowspan > 1))) {
+        throw new DailyError("layout", "Bảng daily có ô gộp nhiều hàng (rowspan) nên không xác định chắc chắn được ô cần điền. Hãy điền thủ công trên Confluence.");
+      }
       const target = cellAt(r, col);
       if (!target) continue;
-      const label = /<ac:plain-text-link-body><!\[CDATA\[([\s\S]*?)\]\]><\/ac:plain-text-link-body>/.exec(first);
+      const label = /<ac:plain-text-link-body><!\[CDATA\[([\s\S]*?)\]\]><\/ac:plain-text-link-body>/.exec(first.slice(who.at));
       return {
         innerStart: target.innerStart,
         innerEnd: target.innerEnd,
