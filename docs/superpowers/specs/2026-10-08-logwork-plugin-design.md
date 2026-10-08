@@ -88,7 +88,7 @@ Cài đặt:
 ### 2.4 Build artefact
 
 - Plugin cài từ git không chạy `prepare`/build, nhưng có tự cài `node_modules` dựa trên `package-lock.json` (lockfileVersion ≥ 2). Vì vậy **`dist/` được commit**: bỏ dòng `dist` khỏi `.gitignore`.
-- Script `npm run release-check`: chạy `npm run build && npm test`, rồi `git diff --exit-code -- dist` để báo lỗi khi `dist/` lệch với source.
+- Script `npm run release-check`: `rm -rf dist && npm run build && npm test && test -z "$(git status --porcelain -- dist)"`, báo lỗi khi `dist/` lệch với source (kể cả file thừa hoặc chưa track).
 - `claude plugin validate .` phải pass.
 
 ### 2.5 Chuyển đổi trên máy đang dùng
@@ -146,6 +146,9 @@ Khi `preview: false`, `version` là version mới sau khi ghi. `row` là `plain-
 |---|---|
 | Không có cột ngày | `Trang daily không có cột cho ngày {date}. Các ngày hiện có: {d1, d2, …}. Có thể đã sang sprint/tuần mới — hãy cung cấp link trang daily mới.` |
 | Không có hàng của người dùng | `Không tìm thấy hàng của bạn (userKey {key}) trong bảng daily. Hãy nhờ người quản lý trang thêm bạn vào bảng.` |
+| Bảng có ô gộp nhiều hàng (layout) | `Bảng daily có ô gộp nhiều hàng (rowspan) nên không xác định chắc chắn được ô cần điền. Hãy điền thủ công trên Confluence.` |
+| Cột ngày không rõ ràng (layout): ô tiêu đề chứa ngày có `colspan` > 1, ngày xuất hiện ở nhiều ô tiêu đề, hoặc ô đích là ô đầu (ô tên) của hàng | `Bảng daily có cột ngày {date} không rõ ràng (ô tiêu đề gộp cột hoặc ngày xuất hiện nhiều lần) nên không xác định chắc chắn được ô cần điền. Hãy điền thủ công trên Confluence.` |
+| `/rest/api/user/current` không trả `userKey` (chuỗi khác rỗng) | `Không lấy được userKey của tài khoản Confluence hiện tại.` (báo trước khi đọc trang) |
 | Ô đã có nội dung, `overwrite` false | `Ô ngày {date} của bạn đã có nội dung. Xem "before" và gọi lại với overwrite: true nếu muốn ghi đè.` (trả `isError` kèm `before`) |
 | Vẫn xung đột sau khi thử lại | Thông báo 409 sẵn có của `formatError` |
 
@@ -161,14 +164,14 @@ Frontmatter:
 ### 4.1 File logwork
 
 - `./logwork/YYYY-MM-DD.md` (ngày theo giờ máy). Mỗi task là một mục `## {KEY} — {summary}` gồm:
-  - `Phiên: HH:MM–HH:MM (XhYm)`; phiên đang mở ghi `HH:MM–…`.
+  - `Phiên: HH:MM–HH:MM (XhYm) · …`; phiên đang mở ghi `HH:MM–…`. Phiên đã log có dấu ` [worklog {id}]`, phiên người dùng chọn bỏ qua có dấu ` [bỏ qua]`; phiên không có dấu là chưa log.
   - `Trạng thái: in-progress | done | blocked`
-  - `Đã làm:` danh sách gạch đầu dòng, viết theo kết quả đạt được.
+  - `Đã làm:` danh sách gạch đầu dòng, viết theo kết quả đạt được. Dòng đã đưa vào một worklog có tiền tố `✓ `.
   - `Vướng mắc:`
-  - `Jira worklog: chờ xác nhận | đã log {d} (worklog {id}) | bỏ qua`
+  - `Jira worklog: chờ xác nhận | đã log hết | bỏ qua` — chỉ là dòng tóm tắt; nguồn sự thật là dấu trên từng phiên.
 - `./logwork/config.json`: `{ "dailyPageUrl": string, "dailyPageId": string }`.
 - Lần đầu tạo `./logwork/`, skill thêm dòng `logwork/` vào `.git/info/exclude` nếu đang ở trong git repo và dòng đó chưa có.
-- Giờ luôn lấy bằng lệnh `date +%H:%M` hoặc `date +%F` tại thời điểm xảy ra, không để model ước lượng.
+- Giờ luôn lấy bằng lệnh `node -e` (ngày `toLocaleDateString("sv-SE")`, giờ `toTimeString().slice(0,5)`) tại thời điểm xảy ra, không để model ước lượng; chạy được trên Linux và macOS. `started` gửi dạng `YYYY-MM-DDTHH:MM:00` không múi giờ, `toJiraDate` hiểu là giờ máy.
 
 ### 4.2 Quy trình bắt đầu task
 
@@ -185,11 +188,11 @@ Frontmatter:
    - thời lượng = tổng các phiên **của task trong ngày chưa được log**, làm tròn lên bội số 15 phút, tối thiểu 15m;
    - `started` = giờ bắt đầu phiên đầu tiên chưa log;
    - comment = các dòng "Đã làm".
-3. Hỏi người dùng: đồng ý, sửa giờ, hoặc bỏ qua. Chỉ gọi `jira_add_worklog` khi được đồng ý, rồi ghi id worklog. Bỏ qua thì ghi `bỏ qua`.
+3. Hỏi người dùng: đồng ý, sửa giờ, hoặc bỏ qua. Chỉ gọi `jira_add_worklog` khi được đồng ý, rồi thêm ` [worklog {id}]` vào các phiên đã log và `✓ ` vào các dòng "Đã làm" đã dùng. Bỏ qua thì thêm ` [bỏ qua]` vào các phiên đó.
 
 ### 4.4 Quy trình điền daily
 
-1. `date` = ngày làm việc kế tiếp sau hôm nay (bỏ qua thứ 7 và chủ nhật).
+1. `date` = ngày làm việc kế tiếp sau hôm nay (bỏ qua thứ 7 và chủ nhật), tính bằng `node -e 'const d=new Date();do d.setDate(d.getDate()+1);while([0,6].includes(d.getDay()));console.log(d.toLocaleDateString("sv-SE"))'`.
 2. A = mỗi task trong file hôm nay: `{summary}` + `issueKey`.
 3. B = các task hôm nay có trạng thái in-progress hoặc blocked, hợp với kết quả `jira_search` JQL `assignee = currentUser() AND status = "In Progress"`, khử trùng theo key.
 4. C = các dòng "Vướng mắc" khác rỗng.

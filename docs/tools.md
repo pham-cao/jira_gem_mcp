@@ -753,6 +753,8 @@ Các lỗi:
 | Không có cột cho `date` | `Trang daily không có cột cho ngày <date>. Các ngày hiện có: …. Có thể đã sang sprint/tuần mới — hãy cung cấp link trang daily mới.` |
 | Không có hàng của bạn | `Không tìm thấy hàng của bạn (userKey …) trong bảng daily. Hãy nhờ người quản lý trang thêm bạn vào bảng.` |
 | Bảng có ô gộp nhiều hàng | `Bảng daily có ô gộp nhiều hàng (rowspan) nên không xác định chắc chắn được ô cần điền. Hãy điền thủ công trên Confluence.` |
+| Cột ngày không rõ ràng (ô tiêu đề gộp cột, ngày lặp lại, hoặc ngày nằm ở cột tên) | `Bảng daily có cột ngày <date> không rõ ràng (ô tiêu đề gộp cột hoặc ngày xuất hiện nhiều lần) nên không xác định chắc chắn được ô cần điền. Hãy điền thủ công trên Confluence.` |
+| Tài khoản Confluence không có `userKey` | `Không lấy được userKey của tài khoản Confluence hiện tại.` |
 | Ô đã có nội dung, `overwrite: false` | `Ô ngày <date> của bạn đã có nội dung. Xem "before" và gọi lại với overwrite: true nếu muốn ghi đè.` kèm nội dung hiện tại |
 
 - Tool không tự thêm cột ngày hoặc hàng thành viên vào trang.
