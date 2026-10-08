@@ -1,8 +1,8 @@
 import { http, HttpResponse } from "msw";
 import { describe, expect, it } from "vitest";
-import { HttpError } from "../src/http/errors.js";
+import { HttpError, formatError } from "../src/http/errors.js";
 import { JiraError } from "../src/jira/errors.js";
-import { checkConfluence, createServer, startupChecks } from "../src/server.js";
+import { checkConfluence, confluenceStartup, createServer, startupChecks } from "../src/server.js";
 import { AGILE, API, CAPI, connectServer, makeClient, makeConfluenceClient, mswServer, useMsw } from "./helpers.js";
 
 useMsw();
@@ -133,5 +133,25 @@ describe("checkConfluence", () => {
     const err = await checkConfluence(makeConfluenceClient()).catch((e) => e);
     expect(err).toBeInstanceOf(HttpError);
     expect(err.service).toBe("Confluence");
+  });
+});
+
+describe("confluenceStartup", () => {
+  it("names Confluence when the login check fails with HTTP 401", async () => {
+    mswServer.use(http.get(`${CAPI}/user/current`, () => new HttpResponse(null, { status: 401 })));
+    const err = await confluenceStartup(makeConfluenceClient()).catch((e) => e);
+    expect(err.message).toBe("Đăng nhập Confluence thất bại: Xác thực thất bại: sai username/password.");
+    expect(formatError(err)).toMatch(/^Đăng nhập Confluence thất bại: /);
+  });
+
+  it("keeps the anonymous-session copy", async () => {
+    mswServer.use(http.get(`${CAPI}/user/current`, () => HttpResponse.json({ type: "anonymous" })));
+    const err = await confluenceStartup(makeConfluenceClient()).catch((e) => e);
+    expect(formatError(err)).toBe("Đăng nhập Confluence thất bại (sai username/password hoặc tài khoản bị khoá/CAPTCHA).");
+  });
+
+  it("returns the username on success", async () => {
+    mswServer.use(http.get(`${CAPI}/user/current`, () => HttpResponse.json({ type: "known", username: "alice" })));
+    expect(await confluenceStartup(makeConfluenceClient())).toEqual({ name: "alice" });
   });
 });

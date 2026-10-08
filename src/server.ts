@@ -1,6 +1,7 @@
 import { createRequire } from "node:module";
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import type { HttpClient } from "./http/client.js";
+import { formatError } from "./http/errors.js";
 import type { JiraClient } from "./jira/client.js";
 import { FieldCache } from "./jira/fields.js";
 import { slimUser, type SlimUser } from "./jira/format.js";
@@ -26,10 +27,22 @@ export async function startupChecks(client: JiraClient): Promise<{ user: SlimUse
   return { user, agile: agileOk };
 }
 
+const CONFLUENCE_ANONYMOUS = "Đăng nhập Confluence thất bại (sai username/password hoặc tài khoản bị khoá/CAPTCHA).";
+
 export async function checkConfluence(c: HttpClient): Promise<{ name: string }> {
   const u = await c.get<{ type?: string; username?: string }>("/rest/api/user/current");
-  if (u.type === "anonymous") throw new Error("Đăng nhập Confluence thất bại (sai username/password hoặc tài khoản bị khoá/CAPTCHA).");
+  if (u.type === "anonymous") throw new Error(CONFLUENCE_ANONYMOUS);
   return { name: u.username ?? "" };
+}
+
+// Startup wrapper: every failure names Confluence, so it is not mistaken for a Jira login error.
+export async function confluenceStartup(c: HttpClient): Promise<{ name: string }> {
+  try {
+    return await checkConfluence(c);
+  } catch (e) {
+    if (e instanceof Error && e.message === CONFLUENCE_ANONYMOUS) throw e;
+    throw new Error(`Đăng nhập Confluence thất bại: ${formatError(e)}`);
+  }
 }
 
 export function createServer(client: JiraClient, opts: { readOnly: boolean; agile: boolean; confluence?: HttpClient }): McpServer {

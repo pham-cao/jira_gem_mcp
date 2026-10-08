@@ -4,7 +4,7 @@ import { loadConfig } from "./config.js";
 import { HttpClient } from "./http/client.js";
 import { JiraClient } from "./jira/client.js";
 import { formatError } from "./jira/errors.js";
-import { checkConfluence, createServer, startupChecks } from "./server.js";
+import { confluenceStartup, createServer, startupChecks } from "./server.js";
 
 const log = (msg: string) => process.stderr.write(`[jira-mcp] ${msg}\n`);
 
@@ -19,7 +19,7 @@ async function main(): Promise<void> {
   let confluence: HttpClient | undefined;
   if (config.confluence) {
     confluence = new HttpClient({ ...config.confluence, timeoutMs: config.timeoutMs, service: "Confluence" });
-    await checkConfluence(confluence);
+    await confluenceStartup(confluence);
   }
   const server = createServer(client, { readOnly: config.readOnly, agile, ...(confluence && { confluence }) });
   log(`connected as ${user.name}, agile tools: ${agile ? "on" : "off"}, confluence: ${confluence ? "on" : "off"}, read-only: ${config.readOnly ? "on" : "off"}`);
