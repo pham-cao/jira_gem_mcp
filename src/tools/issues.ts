@@ -59,7 +59,7 @@ export function register(ctx: ToolContext): void {
       const res = await client.post<any>("/rest/api/2/search", { jql, startAt, maxResults, fields: fields ?? DEFAULT_SEARCH_FIELDS });
       const sprintFieldId = fields ? await ctx.fields.sprintFieldId() : undefined;
       return paged(
-        res.issues.map((i: any) => slimIssue(i, { baseUrl: base, sprintFieldId })),
+        res.issues.map((i: any) => slimIssue(i, { baseUrl: base, sprintFieldId, requested: fields })),
         { total: res.total, startAt: res.startAt, maxResults: res.maxResults },
       );
     },
@@ -69,8 +69,9 @@ export function register(ctx: ToolContext): void {
     ctx,
     "jira_get_issue",
     {
-      description: "Get one issue with details: description, links, subtasks, attachments, sprint and the 10 latest comments.",
-      input: { issueKey: key, expand: z.array(z.string()).optional().describe("e.g. changelog, renderedFields") },
+      description:
+        "Get one issue with details: description, links, subtasks, attachments, sprint, time tracking and the 10 latest comments. expand: changelog (status/field history), renderedFields (HTML description).",
+      input: { issueKey: key, expand: z.array(z.enum(["changelog", "renderedFields"])).optional() },
     },
     async (args) => {
       const [raw, sprintFieldId] = await Promise.all([

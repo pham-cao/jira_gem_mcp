@@ -59,8 +59,23 @@ export class JiraError extends Error {
 
 const withMessages = (head: string, messages: string[]) => [head, ...messages].join("\n");
 
+const TLS_CODE = /CERT|SSL|TLS|UNABLE_TO_VERIFY/i;
+
+function formatPlainError(err: unknown): string {
+  if (!(err instanceof Error)) return String(err);
+  if (err.name === "TimeoutError") return "Jira không phản hồi trong thời gian cho phép (JIRA_TIMEOUT_MS).";
+  const cause = err.cause as { code?: string; message?: string } | undefined;
+  if (!cause || typeof cause !== "object") return err.message;
+  const code = cause.code ?? "";
+  const detail = [code, cause.message].filter(Boolean).join(": ");
+  const hint = TLS_CODE.test(code)
+    ? "\nGợi ý: nếu Jira dùng chứng chỉ tự ký hoặc CA nội bộ, đặt JIRA_INSECURE_TLS=true (hoặc NODE_EXTRA_CA_CERTS)."
+    : "";
+  return `Lỗi kết nối tới Jira: ${err.message} (${detail})${hint}`;
+}
+
 export function formatError(err: unknown): string {
-  if (!(err instanceof JiraError)) return err instanceof Error ? err.message : String(err);
+  if (!(err instanceof JiraError)) return formatPlainError(err);
   if (err.captcha) return "Tài khoản đang bị yêu cầu CAPTCHA — đăng nhập Jira trên trình duyệt một lần để mở khoá.";
   switch (err.status) {
     case 400:

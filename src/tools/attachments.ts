@@ -43,6 +43,8 @@ export function register(ctx: ToolContext): void {
         destPath: z.string().min(1).describe("Absolute file or directory path"),
         overwrite: z.boolean().default(false),
       },
+      // Read-only towards Jira (stays available in read-only mode) but writes local files.
+      readOnlyHint: false,
     },
     async (args) => {
       const meta = await client.get<any>(`/rest/api/2/attachment/${encodeURIComponent(args.attachmentId)}`);

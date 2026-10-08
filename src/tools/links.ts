@@ -6,7 +6,8 @@ export function register(ctx: ToolContext): void {
     ctx,
     "jira_link_issues",
     {
-      description: "Link two issues. type is a link type name from jira_list_link_types (e.g. Blocks: outwardIssue blocks inwardIssue).",
+      description:
+        "Link two issues. type is a link type name from jira_list_link_types. Direction: inwardIssue gets the outward verb, e.g. type Blocks with inwardIssue=A, outwardIssue=B means A blocks B.",
       input: { type: z.string().min(1), inwardIssue: z.string().trim().min(1), outwardIssue: z.string().trim().min(1), comment: z.string().optional() },
       write: true,
     },

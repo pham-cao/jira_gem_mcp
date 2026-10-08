@@ -21,3 +21,9 @@ it("jira_link_issues sends the exact body", async () => {
 it("jira_link_issues is hidden in read-only mode", async () => {
   expect(await (await connectTools([register], { readOnly: true })).toolNames()).toEqual([]);
 });
+
+it("jira_link_issues description states Jira 8.5's real direction (verified live: inward=A, outward=B → A blocks B)", async () => {
+  const h = await connectTools([register]);
+  const tool = (await h.client.listTools()).tools.find((t) => t.name === "jira_link_issues");
+  expect(tool?.description).toContain("inwardIssue=A, outwardIssue=B means A blocks B");
+});

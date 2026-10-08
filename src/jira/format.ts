@@ -88,7 +88,22 @@ export function slimSprint(s: any): SlimSprint & { startDate?: string; endDate?:
 
 const isPrimitive = (v: unknown) => v === null || ["string", "number", "boolean"].includes(typeof v);
 
-export function slimIssue(raw: any, opts: { baseUrl: string; sprintFieldId?: string; full?: boolean }): Record<string, unknown> {
+/** Generic slimming for fields without special handling: objects collapse to name/value/key/displayName. */
+export function slimValue(v: unknown): unknown {
+  if (isPrimitive(v)) return v;
+  if (Array.isArray(v)) return v.map(slimValue).filter((x) => x !== undefined);
+  if (v && typeof v === "object") {
+    const o = v as any;
+    if (o.name !== undefined && o.displayName !== undefined) return slimUser(o);
+    return o.name ?? o.value ?? o.key ?? o.displayName ?? undefined;
+  }
+  return undefined;
+}
+
+export function slimIssue(
+  raw: any,
+  opts: { baseUrl: string; sprintFieldId?: string; full?: boolean; requested?: string[] },
+): Record<string, unknown> {
   const f = raw.fields ?? {};
   const out: Record<string, unknown> = { key: raw.key, url: `${opts.baseUrl}/browse/${raw.key}` };
   const set = (k: string, v: unknown) => {
@@ -129,6 +144,23 @@ export function slimIssue(raw: any, opts: { baseUrl: string; sprintFieldId?: str
       );
     if (has("attachment"))
       set("attachments", (f.attachment ?? []).map((a: any) => ({ id: a.id, filename: a.filename, size: a.size, mimeType: a.mimeType })));
+    if (has("duedate")) set("duedate", f.duedate);
+    if (has("components")) set("components", slimValue(f.components));
+    if (has("fixVersions")) set("fixVersions", slimValue(f.fixVersions));
+    if (f.timetracking) {
+      const { originalEstimate, remainingEstimate, timeSpent } = f.timetracking;
+      set("timetracking", { originalEstimate, remainingEstimate, timeSpent });
+    }
+    if (raw.renderedFields?.description) set("renderedDescription", truncate(raw.renderedFields.description, ""));
+    if (raw.changelog?.histories)
+      set(
+        "changelog",
+        raw.changelog.histories.slice(-50).map((h: any) => ({
+          author: slimUser(h.author),
+          created: h.created,
+          items: (h.items ?? []).map((i: any) => ({ field: i.field, from: i.fromString, to: i.toString })),
+        })),
+      );
     if (f.comment) {
       set("comments", (f.comment.comments ?? []).slice(-10).map(slimComment));
       set("commentsTotal", f.comment.total);
@@ -138,8 +170,11 @@ export function slimIssue(raw: any, opts: { baseUrl: string; sprintFieldId?: str
   if (opts.sprintFieldId && has(opts.sprintFieldId)) set("sprint", parseSprintValue(f[opts.sprintFieldId]));
 
   for (const [k, v] of Object.entries(f)) {
-    if (!k.startsWith("customfield_") || k === opts.sprintFieldId) continue;
-    if (isPrimitive(v) || (Array.isArray(v) && v.every(isPrimitive))) out[k] = v;
+    if (k in out || k === opts.sprintFieldId) continue;
+    const wanted = opts.requested?.includes(k) || (k.startsWith("customfield_") && v !== null);
+    if (!wanted) continue;
+    const slim = slimValue(v);
+    if (slim !== undefined) out[k] = slim;
   }
   return out;
 }

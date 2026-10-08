@@ -19,7 +19,7 @@ export function jsonResult(data: unknown): CallToolResult {
 export function defineTool<S extends ZodRawShape>(
   ctx: ToolContext,
   name: string,
-  spec: { description: string; input: S; write?: boolean },
+  spec: { description: string; input: S; write?: boolean; readOnlyHint?: boolean },
   fn: (args: z.objectOutputType<S, ZodTypeAny>) => Promise<unknown>,
 ): void {
   if (spec.write && ctx.readOnly) return;
@@ -32,7 +32,7 @@ export function defineTool<S extends ZodRawShape>(
   };
   ctx.server.registerTool(
     name,
-    { description: spec.description, inputSchema: spec.input, annotations: { readOnlyHint: !spec.write } },
+    { description: spec.description, inputSchema: spec.input, annotations: { readOnlyHint: spec.readOnlyHint ?? !spec.write } },
     // The SDK's generic callback type cannot be expressed through our own generic S.
     handler as never,
   );

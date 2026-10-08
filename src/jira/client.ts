@@ -63,7 +63,15 @@ export class JiraClient {
     const res = method === "GET" ? await this.withRetry(send) : await send();
     if (!res.ok) throw await JiraError.fromResponse(res, method, path);
     const text = await res.text();
-    return (text ? JSON.parse(text) : undefined) as T;
+    if (!text) return undefined as T;
+    try {
+      return JSON.parse(text) as T;
+    } catch {
+      const type = (res.headers.get("content-type") ?? "unknown").split(";")[0];
+      throw new Error(
+        `Jira trả về nội dung không phải JSON (HTTP ${res.status}, ${type}) cho ${method} ${path} — có thể bị chuyển hướng tới trang đăng nhập/SSO hoặc proxy.`,
+      );
+    }
   }
 
   private fetch(url: string, init: RequestInit): Promise<Response> {
