@@ -61,6 +61,7 @@ export function markdownToStorage(src: string): string {
 
 const PANELS: Record<string, string> = { info: "Info", note: "Note", warning: "Warning", tip: "Tip" };
 const CDATA = /<!\[CDATA\[([\s\S]*?)\]\]>/g;
+const PLAIN_BODY_OR_CDATA = /<ac:plain-text-body>((?:<!\[CDATA\[[\s\S]*?\]\]>|[^<])*)<\/ac:plain-text-body>|<!\[CDATA\[([\s\S]*?)\]\]>/g;
 
 const child = (node: HTMLElement, name: string): HTMLElement | undefined =>
   Array.from(node.childNodes).find((n): n is HTMLElement => n.nodeName === name);
@@ -89,7 +90,15 @@ function confluence(content: string, el: HTMLElement, bodies: string[]): string 
       return macro(el, content, bodies);
     case "AC:PARAMETER":
     case "AC:PLAIN-TEXT-BODY":
+    case "AC:TASK-ID":
+    case "AC:TASK-STATUS":
       return "";
+    case "AC:TASK-LIST":
+      return `\n\n${content.trim()}\n\n`;
+    case "AC:TASK": {
+      const done = child(el, "AC:TASK-STATUS")?.textContent?.trim() === "complete";
+      return `- [${done ? "x" : " "}] ${content.trim().replace(/\n(?=[^\n])/g, "\n  ")}\n`;
+    }
     case "AC:LINK": {
       const title = child(el, "RI:PAGE")?.getAttribute("ri:content-title") ?? child(el, "RI:ATTACHMENT")?.getAttribute("ri:filename");
       return title ? `[${title}]` : content;
@@ -134,12 +143,13 @@ function makeTurndown(bodies: string[]): TurndownService {
 export function storageToMarkdown(xhtml: string): string {
   const bodies: string[] = [];
   const html = xhtml
-    // Stash plain-text bodies; joining split CDATA sections restores any "]]>" in the original text.
-    .replace(/<ac:plain-text-body>([\s\S]*?)<\/ac:plain-text-body>/g, (_m, inner: string) => {
+    // One left-to-right pass so markup inside CDATA is never mistaken for tags. Plain-text bodies are stashed (joining split
+    // CDATA sections restores any "]]>"); other CDATA becomes escaped text.
+    .replace(PLAIN_BODY_OR_CDATA, (_m, inner: string | undefined, text: string | undefined) => {
+      if (inner === undefined) return esc(text ?? "");
       bodies.push(inner.replace(CDATA, "$1"));
       return `<ac:plain-text-body data-body="${bodies.length - 1}"></ac:plain-text-body>`;
     })
-    .replace(CDATA, (_m, text: string) => esc(text))
     // The HTML parser treats self-closing unknown tags as open tags, swallowing later siblings.
     .replace(/<((?:ac|ri):[\w-]+)((?:\s+[^\s=/>]+\s*=\s*(?:"[^"]*"|'[^']*'))*)\s*\/>/g, "<$1$2></$1>")
     // A void child keeps Turndown from trimming the spaces around empty inline elements.

@@ -76,4 +76,38 @@ describe("storageToMarkdown", () => {
   });
   it.each(["# Tiêu đề\n\nĐoạn **đậm**", "- a\n- b", "| a | b |\n| --- | --- |\n| 1 | 2 |", "```js\nx()\n```"])(
     "round-trips %j", (md) => { expect(storageToMarkdown(markdownToStorage(md))).toBe(md); });
+  it("does not end a code body at a closing tag inside CDATA", () => {
+    expect(storageToMarkdown(code("xml", "x <ac:plain-text-body>y</ac:plain-text-body> z"))).toBe(
+      "```xml\nx <ac:plain-text-body>y</ac:plain-text-body> z\n```",
+    );
+  });
+  it("renders task lists as GFM checkboxes", () => {
+    const xml =
+      "<ac:task-list><ac:task><ac:task-id>1</ac:task-id><ac:task-status>incomplete</ac:task-status><ac:task-body>Do A</ac:task-body></ac:task>" +
+      "<ac:task><ac:task-id>2</ac:task-id><ac:task-status>complete</ac:task-status><ac:task-body>Do <strong>B</strong></ac:task-body></ac:task></ac:task-list>";
+    expect(storageToMarkdown(xml)).toBe("- [ ] Do A\n- [x] Do **B**");
+  });
+  it("keeps multi-line indented code with blank lines", () => {
+    expect(storageToMarkdown(code("py", "def f():\n\n    if a:\n        return 1\n"))).toBe("```py\ndef f():\n\n    if a:\n        return 1\n```");
+  });
+  it("joins split CDATA back into ]]>", () => {
+    const xml = '<ac:structured-macro ac:name="code"><ac:plain-text-body><![CDATA[a]]]]><![CDATA[>b]]></ac:plain-text-body></ac:structured-macro>';
+    expect(storageToMarkdown(xml)).toBe("```\na]]>b\n```");
+  });
+  it("renders nested and ordered lists with start", () => {
+    expect(storageToMarkdown('<ol start="3"><li>a<ul><li>b</li></ul></li><li>d</li></ol>')).toBe("3. a\n   - b\n4. d");
+  });
+  it("keeps single spaces around inline empty macros", () => {
+    expect(storageToMarkdown('<p>S: <ac:structured-macro ac:name="status" /> end</p>')).toBe("S: [macro: status] end");
+  });
+  it("renders nested macros", () => {
+    const xml =
+      '<ac:structured-macro ac:name="expand"><ac:parameter ac:name="title">T</ac:parameter><ac:rich-text-body>' +
+      `<ac:structured-macro ac:name="info"><ac:rich-text-body><p>Read</p>${code("sh", "ls\npwd")}</ac:rich-text-body></ac:structured-macro>` +
+      "</ac:rich-text-body></ac:structured-macro>";
+    expect(storageToMarkdown(xml)).toBe("[macro: expand]\n\n> **Info:** Read\n> \n> ```sh\n> ls\n> pwd\n> ```");
+  });
+  it("keeps siblings after a self-closing tag inside an inline run", () => {
+    expect(storageToMarkdown('<p>a <em>b <ac:image><ri:attachment ri:filename="i.png" /></ac:image> c</em> d</p>')).toBe("a _b ![i.png] c_ d");
+  });
 });
