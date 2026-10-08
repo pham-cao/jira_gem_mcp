@@ -62,6 +62,8 @@ export async function connectServer(server: McpServer): Promise<Harness> {
       return JSON.parse((r.content[0] as { text: string }).text);
     },
     async toolNames() {
+      // A server with zero tools does not advertise the tools capability at all.
+      if (!client.getServerCapabilities()?.tools) return [];
       return (await client.listTools()).tools.map((t) => t.name).sort();
     },
   };
