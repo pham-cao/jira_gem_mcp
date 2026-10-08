@@ -21,6 +21,7 @@ Tài liệu này hướng dẫn kết nối `jira-server-mcp` với các MCP cli
 |---|---|
 | Node.js | ≥ 20 (`node --version`) |
 | Jira | Jira Server/Data Center 8.x, đăng nhập bằng username/password. Đã kiểm tra với 8.5.19 tại `https://pm.gem-corp.tech` |
+| Confluence (tuỳ chọn) | Confluence Server/Data Center, đăng nhập bằng username/password, tại `https://conf.gem-corp.tech` |
 | Mạng | Máy chạy MCP truy cập được `JIRA_BASE_URL` (VPN nếu cần) |
 | Git | Cần nếu cài qua `npx` từ git URL |
 
@@ -63,6 +64,11 @@ Cách B khởi động nhanh hơn và không phụ thuộc mạng git khi chạy
 | `JIRA_READ_ONLY` | | `false` | `true` → chỉ bật tool đọc |
 | `JIRA_INSECURE_TLS` | | `false` | `true` → bỏ kiểm tra chứng chỉ TLS |
 | `JIRA_TIMEOUT_MS` | | `30000` | timeout mỗi request |
+| `CONFLUENCE_BASE_URL` | | | `https://conf.gem-corp.tech`. Bỏ trống → không bật tool Confluence |
+| `CONFLUENCE_USERNAME` | | `JIRA_USERNAME` | chỉ đặt khi tài khoản Confluence khác Jira |
+| `CONFLUENCE_PASSWORD` | | `JIRA_PASSWORD` | chỉ đặt khi tài khoản Confluence khác Jira |
+
+Confluence là tuỳ chọn: chỉ cần thêm `CONFLUENCE_BASE_URL`, server dùng lại username/password Jira. Dùng chung cấu hình này cho cả hai hệ thống, nên hãy chắc tài khoản đăng nhập được cả Jira và Confluence.
 
 ## 3. Claude Code
 
@@ -73,6 +79,7 @@ claude mcp add jira --scope user \
   -e JIRA_BASE_URL=https://pm.gem-corp.tech \
   -e JIRA_USERNAME=<username> \
   -e JIRA_PASSWORD='<password>' \
+  -e CONFLUENCE_BASE_URL=https://conf.gem-corp.tech \
   -- npx -y git+https://github.com/pham-cao/jira_gem_mcp.git
 ```
 
@@ -106,6 +113,7 @@ Commit file `.mcp.json` ở gốc repo, **không có mật khẩu**, và đọc 
         "JIRA_BASE_URL": "https://pm.gem-corp.tech",
         "JIRA_USERNAME": "${JIRA_USERNAME}",
         "JIRA_PASSWORD": "${JIRA_PASSWORD}",
+        "CONFLUENCE_BASE_URL": "https://conf.gem-corp.tech",
         "JIRA_READ_ONLY": "${JIRA_READ_ONLY:-false}"
       }
     }
@@ -144,7 +152,8 @@ Mở **Settings → Developer → Edit Config**, hoặc mở trực tiếp file:
       "env": {
         "JIRA_BASE_URL": "https://pm.gem-corp.tech",
         "JIRA_USERNAME": "<username>",
-        "JIRA_PASSWORD": "<password>"
+        "JIRA_PASSWORD": "<password>",
+        "CONFLUENCE_BASE_URL": "https://conf.gem-corp.tech"
       }
     }
   }
@@ -176,7 +185,8 @@ Tạo `.vscode/mcp.json` trong workspace (hoặc chạy lệnh **MCP: Open User 
       "env": {
         "JIRA_BASE_URL": "https://pm.gem-corp.tech",
         "JIRA_USERNAME": "${input:jira-username}",
-        "JIRA_PASSWORD": "${input:jira-password}"
+        "JIRA_PASSWORD": "${input:jira-password}",
+        "CONFLUENCE_BASE_URL": "https://conf.gem-corp.tech"
       }
     }
   }
@@ -198,7 +208,8 @@ Tạo `~/.cursor/mcp.json` (cho mọi project) hoặc `.cursor/mcp.json` (cho m�
       "env": {
         "JIRA_BASE_URL": "https://pm.gem-corp.tech",
         "JIRA_USERNAME": "<username>",
-        "JIRA_PASSWORD": "<password>"
+        "JIRA_PASSWORD": "<password>",
+        "CONFLUENCE_BASE_URL": "https://conf.gem-corp.tech"
       }
     }
   }
@@ -233,17 +244,22 @@ OK   listTools: 26 tools
 OK   jira_search: …
 OK   jira_get_issue …
 OK   jira_list_boards: …
+OK   confluence_list_spaces: …     (chỉ khi có CONFLUENCE_BASE_URL)
+OK   confluence_search: …
+OK   confluence_get_page …
 ```
+
+Số tool và dòng `confluence: on` trong log phụ thuộc cấu hình.
 
 ## 8. Chế độ chỉ đọc
 
-Đặt `JIRA_READ_ONLY=true` để server chỉ đăng ký 14 tool đọc: không tạo, sửa, comment, chuyển trạng thái, log work hay động vào sprint. Nên dùng khi:
+Đặt `JIRA_READ_ONLY=true` để server chỉ đăng ký các tool đọc (14 tool Jira, cộng 8 tool Confluence nếu bật Confluence): không tạo, sửa, comment, chuyển trạng thái, log work, động vào sprint, hay tạo/sửa trang Confluence. Nên dùng khi:
 
 - mới làm quen, muốn Claude chỉ tra cứu và tóm tắt;
 - chạy trong môi trường tự động hoặc CI;
 - dùng chung cấu hình cho người chỉ cần đọc.
 
-`jira_download_attachment` vẫn có trong chế độ này, vì nó chỉ đọc từ Jira dù có ghi file ra máy bạn.
+`jira_download_attachment` và `confluence_download_attachment` vẫn có trong chế độ này, vì chúng chỉ đọc từ Jira/Confluence dù có ghi file ra máy bạn.
 
 ## 9. Ví dụ câu lệnh cho Claude
 
@@ -257,10 +273,15 @@ Không cần gọi tên tool. Claude tự chọn tool dựa trên yêu cầu:
 - "Log 2h30m vào TDISGSAI-145 cho sáng nay lúc 9h, ghi chú 'review dataset'."
 - "Ai đã đổi trạng thái TDISGSAI-145 và lúc nào?" (Claude dùng `expand: changelog`)
 - "Story Points của project này là field nào?" (Claude dùng `jira_search_fields`)
+- "Tìm các trang Confluence trong space DEV nói về deploy, mới sửa gần đây nhất." (Claude dùng `confluence_search` với CQL)
+- "Đọc trang 'Quy trình release' trong space DEV và tóm tắt các bước chính." (`confluence_get_page` theo `spaceKey` + `title`)
+- "Tạo trang 'Biên bản họp 08/10' trong space DEV, dưới trang cha 12345, nội dung Markdown gồm một bảng action item và một khối code." (`confluence_create_page`)
 
 Mẹo:
 - Description và comment dùng **wiki markup** của Jira (`*đậm*`, `_nghiêng_`, `{code}…{code}`, `[link|https://…]`), không phải Markdown. Có thể yêu cầu Claude viết theo định dạng này.
 - Custom field truyền qua `customFields` theo id (ví dụ `customfield_10006` cho Story Points). Claude tự tra id bằng `jira_search_fields` hoặc `jira_get_create_meta`.
+- Trang Confluence: body mặc định là **Markdown** (server tự chuyển sang/từ storage XHTML). Khi đọc, macro lạ hiển thị dạng `[macro: <tên>]`; ghi lại bằng Markdown **không** khôi phục macro đó. Với trang có nhiều macro, nhờ Claude đọc và sửa bằng `format: "storage"`.
+- Trước khi sửa trang, nhờ Claude đọc trang trước và truyền `version` vào `confluence_update_page`, để bị từ chối thay vì ghi đè bản mới hơn của người khác.
 - Với issue type có field bắt buộc riêng (ví dụ Bug của TDISGSAI), hãy nhờ Claude chạy `jira_get_create_meta` trước khi tạo.
 
 ## 10. Xử lý sự cố
@@ -271,7 +292,13 @@ Server ghi log ra stderr với tiền tố `[jira-mcp]`. Xem bằng `claude --de
 |---|---|---|
 | `Cấu hình không hợp lệ: - JIRA_… is required` | Thiếu biến môi trường, hoặc `${VAR}` chưa được đặt | Kiểm tra khối `env`. Với `.mcp.json`, chắc chắn đã `export` biến trước khi mở Claude Code |
 | `Xác thực thất bại: sai username/password.` | Sai thông tin đăng nhập, hoặc dùng email thay cho username | Kiểm tra lại. Lưu ý: **đừng thử lại liên tục**, vì Jira sẽ bật CAPTCHA |
-| `Tài khoản đang bị yêu cầu CAPTCHA…` | Đăng nhập sai quá nhiều lần | Đăng nhập Jira trên trình duyệt một lần (nhập CAPTCHA), rồi khởi động lại MCP |
+| `Tài khoản đang bị yêu cầu CAPTCHA…` | Đăng nhập sai quá nhiều lần | Đăng nhập Jira (hoặc Confluence, nếu thông báo nhắc Confluence) trên trình duyệt một lần (nhập CAPTCHA), rồi khởi động lại MCP |
+| `Đăng nhập Confluence thất bại (sai username/password hoặc tài khoản bị khoá/CAPTCHA).` (server thoát lúc khởi động) | Confluence coi request là anonymous: sai username/password, tài khoản bị khoá, hoặc đang bị CAPTCHA | Đăng nhập Confluence trên trình duyệt để kiểm tra/mở khoá. Nếu tài khoản Confluence khác Jira, đặt `CONFLUENCE_USERNAME`/`CONFLUENCE_PASSWORD`. Tạm thời có thể bỏ `CONFLUENCE_BASE_URL` để chạy chỉ với Jira |
+| Tool Confluence báo CAPTCHA (Confluence trả header `X-Seraph-LoginReason: AUTHENTICATION_DENIED`) | Confluence từ chối xác thực sau nhiều lần đăng nhập sai | Đăng nhập Confluence trên trình duyệt một lần, nhập CAPTCHA, rồi thử lại |
+| `Xung đột khi ghi (409): trang vừa bị người khác sửa…` hoặc `Xung đột phiên bản: trang … đang ở version N, không phải M…` | Trang đã được sửa sau lần bạn đọc (`version` truyền vào cũ) | Nhờ Claude đọc lại trang bằng `confluence_get_page` để lấy version mới, gộp thay đổi rồi gọi lại `confluence_update_page` |
+| `Yêu cầu không hợp lệ (400)…` kèm gợi ý `format: "markdown"` | Body storage XHTML không hợp lệ khi ghi trang Confluence | Dùng `format: "markdown"` (mặc định), hoặc sửa XHTML cho đúng |
+| Không thấy tool `confluence_*` | Chưa đặt `CONFLUENCE_BASE_URL` | Thêm biến này vào khối `env`, khởi động lại client. Log khởi động phải có `confluence: on` |
+| `Cấu hình không hợp lệ: - CONFLUENCE_BASE_URL: is required when CONFLUENCE_USERNAME/CONFLUENCE_PASSWORD is set` | Đặt username/password Confluence mà thiếu base URL | Thêm `CONFLUENCE_BASE_URL`, hoặc bỏ hai biến kia |
 | `Jira trả về nội dung không phải JSON (HTTP 200, text/html)…` | Bị chuyển sang trang login/SSO, hoặc proxy trả trang lỗi | Kiểm tra VPN/proxy. Mở `JIRA_BASE_URL/rest/api/2/serverInfo` trên trình duyệt xem có ra JSON không |
 | `Lỗi kết nối tới Jira: fetch failed (ENOTFOUND …)` | Không phân giải được tên miền | Kiểm tra VPN/DNS và `JIRA_BASE_URL` |
 | `… (SELF_SIGNED_CERT_IN_CHAIN …)` hoặc `UNABLE_TO_VERIFY_LEAF_SIGNATURE` | Jira dùng chứng chỉ của CA nội bộ | Nên dùng `NODE_EXTRA_CA_CERTS=/path/ca.pem`. Tạm thời có thể đặt `JIRA_INSECURE_TLS=true` |
@@ -287,10 +314,10 @@ Server ghi log ra stderr với tiền tố `[jira-mcp]`. Xem bằng `claude --de
 - Mật khẩu là thông tin đăng nhập đầy đủ vào Jira. MCP thao tác với **đúng quyền của tài khoản bạn**.
 - **Không commit** file chứa mật khẩu: `.env`, `~/.claude.json`, `.cursor/mcp.json`, `claude_desktop_config.json`. Khi chia sẻ qua git, dùng `${VAR}` (Claude Code) hoặc `inputs` (VS Code).
 - Giữ file cấu hình ở chế độ chỉ mình bạn đọc được (`chmod 600`).
-- Server không bao giờ log mật khẩu, không tự thử lại khi sai mật khẩu, và không gửi thông tin đăng nhập tới host khác `JIRA_BASE_URL`.
+- Server không bao giờ log mật khẩu, không tự thử lại khi sai mật khẩu, và không gửi thông tin đăng nhập tới host khác `JIRA_BASE_URL` (hoặc `CONFLUENCE_BASE_URL` với Confluence).
 - Khi đổi mật khẩu Jira, nhớ cập nhật mọi nơi đã cấu hình.
-- MCP không có tool xoá (issue, comment, worklog, attachment, sprint). Các thao tác không hoàn tác được hãy làm trên web.
-- Claude Code mặc định hỏi trước mỗi lần gọi tool. Chỉ nên cho phép tự động các tool đọc, **trừ** `jira_download_attachment`: tool này ghi file vào đường dẫn local bất kỳ. Cũng không tự động cho phép `jira_upload_attachment`, vì nó đọc file local bất kỳ. Nội dung Jira có thể chứa prompt injection nhằm ghi đè hoặc lấy file trên máy bạn.
+- MCP không có tool xoá (issue, comment, worklog, attachment, sprint, trang Confluence). Các thao tác không hoàn tác được hãy làm trên web.
+- Claude Code mặc định hỏi trước mỗi lần gọi tool. Chỉ nên cho phép tự động các tool đọc, **trừ** `jira_download_attachment` và `confluence_download_attachment`: các tool này ghi file vào đường dẫn local bất kỳ. Cũng không tự động cho phép `jira_upload_attachment` và `confluence_upload_attachment`, vì chúng đọc file local bất kỳ. Nội dung Jira/Confluence có thể chứa prompt injection nhằm ghi đè hoặc lấy file trên máy bạn.
 
 ## 12. Cập nhật phiên bản
 

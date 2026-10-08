@@ -1,6 +1,6 @@
 # Danh sách tool của jira-server-mcp
 
-Tài liệu tham khảo cho 26 tool mà server cung cấp. Thông thường bạn **không cần gọi tool trực tiếp**: chỉ cần mô tả yêu cầu bằng lời, Claude sẽ tự chọn tool và tham số. Tài liệu này giúp bạn biết MCP làm được gì, giới hạn ở đâu, và đọc hiểu kết quả.
+Tài liệu tham khảo cho 26 tool Jira, cùng 13 tool Confluence (xem [mục 9](#9-confluence)) khi đặt `CONFLUENCE_BASE_URL`. Thông thường bạn **không cần gọi tool trực tiếp**: chỉ cần mô tả yêu cầu bằng lời, Claude sẽ tự chọn tool và tham số. Tài liệu này giúp bạn biết MCP làm được gì, giới hạn ở đâu, và đọc hiểu kết quả.
 
 Cài đặt và kết nối với client: xem [integration.md](integration.md).
 
@@ -21,10 +21,14 @@ Cài đặt và kết nối với client: xem [integration.md](integration.md).
 | [Metadata](#7-metadata) | [`jira_list_projects`](#jira_list_projects), [`jira_get_create_meta`](#jira_get_create_meta), [`jira_search_fields`](#jira_search_fields), [`jira_search_users`](#jira_search_users) | đọc |
 | [Agile: board & sprint](#8-agile-board--sprint) | [`jira_list_boards`](#jira_list_boards), [`jira_list_sprints`](#jira_list_sprints), [`jira_get_sprint_issues`](#jira_get_sprint_issues) | đọc |
 | | [`jira_move_issues_to_sprint`](#jira_move_issues_to_sprint), [`jira_create_sprint`](#jira_create_sprint), [`jira_update_sprint`](#jira_update_sprint) | ghi |
+| [Confluence](#9-confluence) | [`confluence_search`](#confluence_search), [`confluence_get_page`](#confluence_get_page), [`confluence_get_page_children`](#confluence_get_page_children), [`confluence_list_spaces`](#confluence_list_spaces), [`confluence_get_comments`](#confluence_get_comments), [`confluence_get_labels`](#confluence_get_labels), [`confluence_list_attachments`](#confluence_list_attachments) | đọc |
+| | [`confluence_download_attachment`](#confluence_download_attachment) | đọc Confluence, ghi file local |
+| | [`confluence_create_page`](#confluence_create_page), [`confluence_update_page`](#confluence_update_page), [`confluence_add_comment`](#confluence_add_comment), [`confluence_add_labels`](#confluence_add_labels), [`confluence_upload_attachment`](#confluence_upload_attachment) | ghi |
 
 - **Tool ghi** không xuất hiện khi bật `JIRA_READ_ONLY=true`. Khi đó còn 14 tool đọc.
 - **Tool agile** chỉ xuất hiện khi Jira có Jira Software. Server tự kiểm tra lúc khởi động.
-- **Không có tool xoá** (issue, comment, worklog, attachment, sprint). Hãy xoá trên giao diện web.
+- **Tool Confluence** chỉ xuất hiện khi đặt `CONFLUENCE_BASE_URL`. Khi bật `JIRA_READ_ONLY=true`, còn thêm 8 tool đọc Confluence (kể cả `confluence_download_attachment`).
+- **Không có tool xoá** (issue, comment, worklog, attachment, sprint, trang Confluence). Hãy xoá trên giao diện web.
 
 ## Quy ước chung
 
@@ -522,6 +526,202 @@ Sửa sprint, hoặc start/close sprint. Chỉ gửi những thuộc tính đư�
 
 ---
 
+## 9. Confluence
+
+Chỉ có khi đặt `CONFLUENCE_BASE_URL`. Dùng chung tài khoản Jira, trừ khi đặt `CONFLUENCE_USERNAME`/`CONFLUENCE_PASSWORD`.
+
+**Quy ước:**
+- `pageId`, `attachmentId`, `parentId`, `parentCommentId` phải là chuỗi số (vd `"208764902"`).
+- Body trang và comment mặc định là **Markdown** (`format: "markdown"`), server tự chuyển sang storage XHTML khi ghi và ngược lại khi đọc. `format: "storage"` dùng XHTML thô của Confluence (cần khi muốn macro). HTML thô trong Markdown bị escape.
+- Danh sách trả dạng `{ "items": [ … ], "start": 0, "limit": 25, "size": 25, "total": 120, "hasMore": true }`. Muốn lấy trang tiếp, tăng `start` thêm `limit`. `total` vắng nếu Confluence không trả.
+- Tham số phân trang chung: `limit` (mặc định 25, 1–100), `start` (mặc định 0).
+- Lỗi 409 và xung đột `version` trả thông báo tiếng Việt hướng dẫn đọc lại trang, xem [integration.md › Xử lý sự cố](integration.md#10-xử-lý-sự-cố).
+
+### Đọc
+
+### `confluence_search`
+
+Tìm nội dung bằng CQL. → `GET /rest/api/content/search`
+
+| Tham số | Kiểu | Bắt buộc | Mặc định |
+|---|---|---|---|
+| `cql` | string | ✓ | |
+| `limit` | integer | | 25 (tối đa 100) |
+| `start` | integer | | 0 |
+
+Ví dụ: `{ "cql": "type = page AND space = DEV AND text ~ \"deploy\" ORDER BY lastmodified DESC", "limit": 10 }`
+
+Kết quả: phân trang với `items: [{id, type, title, space, version, lastModified, url}]`.
+
+### `confluence_get_page`
+
+Đọc một trang theo `pageId`, hoặc theo `spaceKey` + `title`. → `GET /rest/api/content/{id}` (hoặc `GET /rest/api/content?spaceKey=&title=`)
+
+| Tham số | Kiểu | Bắt buộc | Mặc định | Mô tả |
+|---|---|---|---|---|
+| `pageId` | string | | | Dùng cái này, hoặc cặp `spaceKey` + `title` |
+| `spaceKey` | string | | | |
+| `title` | string | | | Tiêu đề chính xác |
+| `format` | `markdown` \| `storage` | | `markdown` | Định dạng body trả về |
+| `maxChars` | integer | | 50000 | Body dài hơn bị cắt |
+
+Ví dụ: `{ "pageId": "208764902", "maxChars": 2000 }`
+
+Kết quả: `{ id, type, title, space, version, lastModified, url, ancestors: [{id, title}], body, truncated }`. Khi bị cắt có thêm `totalChars`. Giữ lại `version` nếu định sửa trang.
+
+### `confluence_get_page_children`
+
+Liệt kê trang con trực tiếp. → `GET /rest/api/content/{id}/child/page`
+
+| Tham số | Kiểu | Bắt buộc | Mặc định |
+|---|---|---|---|
+| `pageId` | string | ✓ | |
+| `limit` | integer | | 25 (tối đa 100) |
+| `start` | integer | | 0 |
+
+Ví dụ: `{ "pageId": "208764902" }`. Kết quả cùng dạng `confluence_search`.
+
+### `confluence_list_spaces`
+
+Liệt kê space. → `GET /rest/api/space`
+
+| Tham số | Kiểu | Bắt buộc | Mặc định |
+|---|---|---|---|
+| `type` | `global` \| `personal` | | tất cả |
+| `limit` | integer | | 25 (tối đa 100) |
+| `start` | integer | | 0 |
+
+Ví dụ: `{ "type": "global", "limit": 5 }`. Kết quả: phân trang với `items: [{key, name, type, url}]`.
+
+### `confluence_get_comments`
+
+Lấy comment của trang (mọi cấp), body đã chuyển sang Markdown. Comment trả lời có `parentId`. → `GET /rest/api/content/{id}/child/comment`
+
+| Tham số | Kiểu | Bắt buộc | Mặc định |
+|---|---|---|---|
+| `pageId` | string | ✓ | |
+| `limit` | integer | | 25 (tối đa 100) |
+| `start` | integer | | 0 |
+
+Ví dụ: `{ "pageId": "208764902" }`. Kết quả: phân trang với `items: [{id, author, created, parentId, body}]`.
+
+### `confluence_get_labels`
+
+Liệt kê label của trang. → `GET /rest/api/content/{id}/label`
+
+| Tham số | Kiểu | Bắt buộc |
+|---|---|---|
+| `pageId` | string | ✓ |
+
+Ví dụ: `{ "pageId": "208764902" }`. Kết quả: `[{ "name": "release", "prefix": "global" }]`
+
+### `confluence_list_attachments`
+
+Liệt kê file đính kèm của trang. → `GET /rest/api/content/{id}/child/attachment`
+
+| Tham số | Kiểu | Bắt buộc | Mặc định |
+|---|---|---|---|
+| `pageId` | string | ✓ | |
+| `limit` | integer | | 25 (tối đa 100) |
+| `start` | integer | | 0 |
+
+Kết quả: phân trang với `items: [{id, title, mediaType, fileSize, version}]`. Dùng `id` cho `confluence_download_attachment`.
+
+### `confluence_download_attachment`
+
+Tải file đính kèm về máy. → `GET /rest/api/content/{id}` rồi tải theo `_links.download`
+
+| Tham số | Kiểu | Bắt buộc | Mặc định | Mô tả |
+|---|---|---|---|---|
+| `attachmentId` | string | ✓ | | Lấy từ `items[].id` của [`confluence_list_attachments`](#confluence_list_attachments) |
+| `destPath` | string | ✓ | | Đường dẫn tuyệt đối của file đích, hoặc thư mục (khi đó dùng title của attachment làm tên file) |
+| `overwrite` | boolean | | `false` | Mặc định không ghi đè file đã có |
+
+Ví dụ: `{ "attachmentId": "208765001", "destPath": "/home/caopv/Downloads/" }`
+
+- Cùng quy tắc với [`jira_download_attachment`](#jira_download_attachment): từ chối tải nếu URL ở host khác `CONFLUENCE_BASE_URL`, để không gửi mật khẩu ra ngoài.
+- Có trong chế độ chỉ đọc (chỉ đọc từ Confluence) nhưng vẫn **ghi file ra máy bạn**, nên client sẽ hỏi xác nhận. Đọc kỹ `destPath` trước khi duyệt.
+
+### Ghi
+
+Các tool dưới đây **không** xuất hiện khi `JIRA_READ_ONLY=true`.
+
+### `confluence_create_page`
+
+Tạo trang. → `POST /rest/api/content`
+
+| Tham số | Kiểu | Bắt buộc | Mặc định | Mô tả |
+|---|---|---|---|---|
+| `spaceKey` | string | ✓ | | |
+| `title` | string | ✓ | | |
+| `body` | string | ✓ | | Markdown, hoặc XHTML nếu `format: "storage"` |
+| `parentId` | string | | | Trang cha. Bỏ trống thì tạo ở gốc space |
+| `format` | `markdown` \| `storage` | | `markdown` | |
+
+Ví dụ: `{ "spaceKey": "DEV", "title": "Biên bản họp 08/10", "parentId": "12345", "body": "## Action item\n\n| Việc | Người |\n|---|---|\n| Deploy | An |" }`
+
+Kết quả: `{ "id": "208770001", "title": "Biên bản họp 08/10", "version": 1, "url": "https://conf.gem-corp.tech/pages/viewpage.action?pageId=208770001" }`
+
+### `confluence_update_page`
+
+Sửa body và/hoặc tiêu đề. → `GET /rest/api/content/{id}` rồi `PUT /rest/api/content/{id}`
+
+| Tham số | Kiểu | Bắt buộc | Mặc định | Mô tả |
+|---|---|---|---|---|
+| `pageId` | string | ✓ | | |
+| `body` | string | | | Nội dung mới (thay toàn bộ body). Bỏ trống thì giữ body cũ |
+| `title` | string | | | Bỏ trống thì giữ tiêu đề cũ |
+| `version` | integer | | | Version bạn đã đọc. Nếu khác version hiện tại, tool báo lỗi xung đột và **không ghi** |
+| `format` | `markdown` \| `storage` | | `markdown` | |
+| `minorEdit` | boolean | | `false` | Đánh dấu là sửa nhỏ |
+
+Phải có ít nhất `body` hoặc `title`. Ví dụ: `{ "pageId": "208770001", "version": 3, "body": "Nội dung mới" }`
+
+Kết quả: `{ id, title, version, url }` với `version` đã tăng.
+
+> ⚠️ `body` thay toàn bộ nội dung trang. Ghi bằng Markdown sẽ làm mất các macro mà Markdown không biểu diễn được. Với trang nhiều macro, đọc bằng `format: "storage"` rồi ghi lại bằng `format: "storage"`.
+
+### `confluence_add_comment`
+
+Thêm comment vào trang. → `POST /rest/api/content` (`type: comment`)
+
+| Tham số | Kiểu | Bắt buộc | Mô tả |
+|---|---|---|---|
+| `pageId` | string | ✓ | |
+| `body` | string | ✓ | Markdown |
+| `parentCommentId` | string | | Có thì trả lời comment đó |
+
+Ví dụ: `{ "pageId": "208764902", "body": "Đã cập nhật theo góp ý." }`. Kết quả: `{id, author, created, parentId, body}` của comment vừa tạo.
+
+### `confluence_add_labels`
+
+Thêm label (prefix `global`) vào trang. → `POST /rest/api/content/{id}/label`
+
+| Tham số | Kiểu | Bắt buộc | Mô tả |
+|---|---|---|---|
+| `pageId` | string | ✓ | |
+| `labels` | string[] | ✓ | Ít nhất 1 label |
+
+Ví dụ: `{ "pageId": "208764902", "labels": ["release", "q4"] }`. Kết quả: danh sách `{name, prefix}` do Confluence trả về.
+
+### `confluence_upload_attachment`
+
+Đính kèm file trên máy bạn vào trang. → `POST /rest/api/content/{id}/child/attachment`
+
+| Tham số | Kiểu | Bắt buộc | Mô tả |
+|---|---|---|---|
+| `pageId` | string | ✓ | |
+| `filePath` | string | ✓ | Đường dẫn tuyệt đối của file trên máy chạy MCP |
+| `comment` | string | | Ghi chú cho attachment |
+
+Ví dụ: `{ "pageId": "208764902", "filePath": "/home/caopv/report.pdf", "comment": "Báo cáo Q4" }`
+
+- Giới hạn **10MB** mỗi file.
+- Kết quả: `{id, title, mediaType, fileSize, version}` của attachment.
+- Tool đọc file local bất kỳ: đọc kỹ `filePath` trước khi duyệt.
+
+---
+
 ## Phụ lục: tham chiếu nhanh REST endpoint
 
 | Tool | Method | Endpoint |
@@ -552,3 +752,16 @@ Sửa sprint, hoặc start/close sprint. Chỉ gửi những thuộc tính đư�
 | `jira_move_issues_to_sprint` | POST | `/rest/agile/1.0/sprint/{id}/issue` |
 | `jira_create_sprint` | POST | `/rest/agile/1.0/sprint` |
 | `jira_update_sprint` | POST | `/rest/agile/1.0/sprint/{id}` |
+| `confluence_search` | GET | `/rest/api/content/search` |
+| `confluence_get_page` | GET | `/rest/api/content/{id}` hoặc `/rest/api/content?spaceKey=&title=` |
+| `confluence_get_page_children` | GET | `/rest/api/content/{id}/child/page` |
+| `confluence_list_spaces` | GET | `/rest/api/space` |
+| `confluence_get_comments` | GET | `/rest/api/content/{id}/child/comment` |
+| `confluence_get_labels` | GET | `/rest/api/content/{id}/label` |
+| `confluence_list_attachments` | GET | `/rest/api/content/{id}/child/attachment` |
+| `confluence_download_attachment` | GET | `/rest/api/content/{id}` + `_links.download` |
+| `confluence_create_page` | POST | `/rest/api/content` |
+| `confluence_update_page` | GET + PUT | `/rest/api/content/{id}` |
+| `confluence_add_comment` | POST | `/rest/api/content` (`type: comment`) |
+| `confluence_add_labels` | POST | `/rest/api/content/{id}/label` |
+| `confluence_upload_attachment` | POST | `/rest/api/content/{id}/child/attachment` |
