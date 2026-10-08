@@ -1,0 +1,32 @@
+{
+  "name": "jira-server-mcp",
+  "version": "0.1.0",
+  "description": "MCP server for Jira Server 8.x (Basic Auth)",
+  "type": "module",
+  "bin": {
+    "jira-server-mcp": "dist/index.js"
+  },
+  "files": [
+    "dist"
+  ],
+  "engines": {
+    "node": ">=20"
+  },
+  "scripts": {
+    "build": "tsc",
+    "prepare": "npm run build",
+    "test": "vitest run",
+    "smoke": "tsx --env-file=.env scripts/smoke.ts"
+  },
+  "dependencies": {
+    "@modelcontextprotocol/sdk": "^1.32.1",
+    "zod": "^3.25.76"
+  },
+  "devDependencies": {
+    "@types/node": "^20.19.43",
+    "msw": "^2.15.0",
+    "tsx": "^4.23.15",
+    "typescript": "^7.0.2",
+    "vitest": "^4.1.11"
+  }
+}
