@@ -33,4 +33,13 @@ describe("markdownToStorage", () => {
   it("renders task list items as text, not inputs", () => {
     expect(markdownToStorage("- [x] done")).not.toContain("<input");
   });
+  it("emits only XML-safe character references", () => {
+    expect(markdownToStorage("a &nbsp; &copy; b &bogus; &amp;")).toBe("<p>a &#160; &#169; b &amp;bogus; &amp;</p>");
+  });
+  it("leaves entities inside code bodies alone", () => {
+    expect(markdownToStorage("```\n&copy;\n```")).toContain("<![CDATA[&copy;]]>");
+  });
+  it("wraps block-level raw HTML in a paragraph", () => {
+    expect(markdownToStorage("<div>\nhi\n</div>")).toBe("<p>&lt;div&gt;\nhi\n&lt;/div&gt;</p>");
+  });
 });
