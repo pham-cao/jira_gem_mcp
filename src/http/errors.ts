@@ -109,13 +109,16 @@ export function formatError(err: unknown): string {
       return "Xác thực thất bại: sai username/password.";
     case 403:
       return withMessages("Không có quyền thực hiện thao tác.", err.messages);
-    case 409:
-      return withMessages(
-        "Xung đột khi ghi (409): trang vừa bị người khác sửa. Hãy đọc lại trang (confluence_get_page) để lấy version mới.",
-        err.messages,
-      );
     case 404:
       return `Không tìm thấy ${err.method} ${err.path} hoặc không có quyền xem.`;
+    case 409:
+      if (err.service === "Confluence") {
+        return withMessages(
+          "Xung đột khi ghi (409): trang vừa bị người khác sửa. Hãy đọc lại trang (confluence_get_page) để lấy version mới.",
+          err.messages,
+        );
+      }
+    // falls through: Jira keeps the default copy
     default:
       return withMessages(`Lỗi ${err.service} ${err.status} ${err.statusText}`.trimEnd(), err.messages);
   }

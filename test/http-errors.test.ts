@@ -27,6 +27,9 @@ describe("HttpError (Confluence)", () => {
     expect(formatError(mk(409, { service: "Confluence" }))).toBe(
       "Xung đột khi ghi (409): trang vừa bị người khác sửa. Hãy đọc lại trang (confluence_get_page) để lấy version mới.");
   });
+  it("leaves Jira 409 on the default copy", () => {
+    expect(formatError(mk(409, { statusText: "Conflict" }))).toBe("Lỗi Jira 409 Conflict");
+  });
   it("names the service in network errors", async () => {
     const c = new HttpClient({ baseUrl: "https://nope.invalid", username: "u", password: "p", timeoutMs: 200, service: "Confluence" }, { retryDelayMs: 0 });
     const e = await c.get("/x").catch((x) => x);
