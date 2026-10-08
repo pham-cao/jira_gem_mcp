@@ -153,7 +153,8 @@ Claude Code hỏi các giá trị sau khi cài:
 | `username` | — | Bắt buộc; dùng chung Jira và Confluence |
 | `password` | — | Bắt buộc, `sensitive`: lưu trong secure storage, không nằm trong file cấu hình |
 
-- **Đã cài server `jira` bằng `claude mcp add`?** Gỡ bản cũ để tránh trùng tool: `claude mcp remove jira -s user`.
+- **Đã cài server `jira` bằng `claude mcp add`?** Gỡ bản cũ để tránh trùng tool: `claude mcp remove jira -s user` (hoặc `-s local`, hoặc xoá mục `jira` khỏi `.mcp.json` của project); kiểm tra lại bằng `claude mcp list`.
+- **CLI báo userConfig "not yet set"?** Các mục URL đã có giá trị mặc định, bỏ qua được khi đã nhập `username` và `password`.
 - **Tên tool.** Trong plugin, tool có tiền tố dạng `mcp__plugin_gem-jira_jira__jira_get_issue`. Skill `logwork` tự dùng đúng tên.
 - **Skill.** Dùng `/gem-jira:logwork start <ISSUE>`, `/gem-jira:logwork stop`, `/gem-jira:logwork daily`; xem [README › Skill logwork](../README.md#skill-logwork). Dữ liệu ghi vào `./logwork/` (git-excluded).
 - **Kiểm tra.** `/plugin` để xem trạng thái, `/mcp` để thấy server `jira` ở trạng thái connected.

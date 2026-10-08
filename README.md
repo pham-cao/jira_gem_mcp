@@ -98,7 +98,9 @@ Khi cài, Claude Code hỏi các giá trị cấu hình:
 | Username (`username`) | — | Bắt buộc; dùng chung cho Jira và Confluence |
 | Password (`password`) | — | Bắt buộc; lưu trong secure storage |
 
-Nếu trước đó bạn đã thêm server `jira` bằng `claude mcp add`, hãy gỡ bản cũ để không bị trùng tool: `claude mcp remove jira -s user`.
+Nếu trước đó bạn đã thêm server `jira` bằng `claude mcp add`, hãy gỡ bản cũ để không bị trùng tool: `claude mcp remove jira -s user` (hoặc `-s local`, hoặc xoá mục `jira` khỏi `.mcp.json` của project); kiểm tra lại bằng `claude mcp list`.
+
+Sau khi cài, CLI có thể báo một số mục userConfig "not yet set": các mục URL đã có giá trị mặc định, bỏ qua được khi đã nhập `username` và `password`.
 
 Hai cách dưới đây (A, B) dành cho client khác hoặc khi không dùng plugin; khi đó không có skill `logwork`.
 
