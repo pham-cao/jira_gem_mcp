@@ -156,3 +156,17 @@ export function storageToMarkdown(xhtml: string): string {
     .replace(/<((?:ac|ri):[\w-]+)((?:\s+[^\s=/>]+\s*=\s*(?:"[^"]*"|'[^']*'))*)\s*>\s*<\/\1>/g, "<$1$2><wbr /></$1>");
   return makeTurndown(bodies).turndown(html).trim();
 }
+
+// Storage constructs storageToMarkdown cannot round-trip: any ac:/ri: element other than code/noformat macros (with their
+// parameters and plain-text bodies), images, merged table cells and inline styles. CDATA is skipped so code is never inspected.
+export function isLossyForMarkdown(xhtml: string): boolean {
+  const html = xhtml.replace(/<!\[CDATA\[[\s\S]*?\]\]>/g, "");
+  if (/<img[\s/>]|<[a-z][^>]*\s(?:colspan|rowspan|style)\s*=/i.test(html)) return true;
+  for (const [, name, attrs] of html.matchAll(/<((?:ac|ri):[\w-]+)([^>]*)>/gi)) {
+    const n = name!.toLowerCase();
+    if (n === "ac:parameter" || n === "ac:plain-text-body") continue;
+    if (n === "ac:structured-macro" && /\bac:name\s*=\s*["'](?:code|noformat)["']/i.test(attrs!)) continue;
+    return true;
+  }
+  return false;
+}

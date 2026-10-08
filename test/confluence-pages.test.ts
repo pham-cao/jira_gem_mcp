@@ -205,6 +205,95 @@ describe("confluence page tools", () => {
     );
   });
 
+  describe("lossy Markdown write-back guard", () => {
+    const LOSSY =
+      'Trang 123 có nội dung không chuyển được sang Markdown (macro, ảnh, link trang, mention, định dạng bảng…). Ghi đè bằng Markdown sẽ làm mất các phần này. Hãy đọc lại với format: "storage" và sửa bằng format: "storage", hoặc truyền allowLossyMarkdown: true nếu chấp nhận mất.';
+    const withStorage = (value: string, onPut: (b: any) => void) => // eslint-disable-line @typescript-eslint/no-explicit-any
+      mswServer.use(
+        http.get(`${CAPI}/content/123`, () => HttpResponse.json(page({ body: { storage: { value } } }))),
+        http.put(`${CAPI}/content/123`, async ({ request }) => {
+          onPut(await request.json());
+          return HttpResponse.json(page({ version: { number: 5 } }));
+        }),
+      );
+    const IMAGE = '<p>x</p><ac:image><ri:attachment ri:filename="a.png" /></ac:image>';
+
+    it("refuses Markdown over a page with an image, without a PUT", async () => {
+      let puts = 0;
+      withStorage(IMAGE, () => puts++);
+      const r = await (await h()).call("confluence_update_page", { pageId: "123", body: "New" });
+      expect(r.isError).toBe(true);
+      expect((r.content[0] as { text: string }).text).toContain(LOSSY);
+      expect(puts).toBe(0);
+    });
+
+    it.each([
+      ["a user mention", '<p><ac:link><ri:user ri:userkey="abc" /></ac:link></p>'],
+      ["an info macro", '<ac:structured-macro ac:name="info"><ac:rich-text-body><p>x</p></ac:rich-text-body></ac:structured-macro>'],
+      ["a plain img", '<p><img src="x.png" /></p>'],
+      ["a colspan", '<table><tbody><tr><td colspan="2">x</td></tr></tbody></table>'],
+      ["a rowspan", '<table><tbody><tr><td rowspan="2">x</td></tr></tbody></table>'],
+      ["inline style", '<p style="color: red;">x</p>'],
+    ])("refuses Markdown over %s", async (_name, value) => {
+      let puts = 0;
+      withStorage(value, () => puts++);
+      const r = await (await h()).call("confluence_update_page", { pageId: "123", body: "New" });
+      expect((r.content[0] as { text: string }).text).toContain(LOSSY);
+      expect(puts).toBe(0);
+    });
+
+    it("sends the PUT with allowLossyMarkdown: true", async () => {
+      let body: any; // eslint-disable-line @typescript-eslint/no-explicit-any
+      withStorage(IMAGE, (b) => (body = b));
+      await (await h()).json("confluence_update_page", { pageId: "123", body: "New", allowLossyMarkdown: true });
+      expect(body.body.storage.value).toBe("<p>New</p>");
+    });
+
+    it("allows a page with only code/noformat macros and plain HTML", async () => {
+      let body: any; // eslint-disable-line @typescript-eslint/no-explicit-any
+      withStorage(
+        '<h1>T</h1><p>a <strong>b</strong></p><ac:structured-macro ac:name="code" ac:schema-version="1"><ac:parameter ac:name="language">js</ac:parameter>' +
+          '<ac:plain-text-body><![CDATA[x = "<ac:image>" + style="a"]]></ac:plain-text-body></ac:structured-macro>' +
+          '<ac:structured-macro ac:name="noformat"><ac:plain-text-body><![CDATA[raw]]></ac:plain-text-body></ac:structured-macro>',
+        (b) => (body = b),
+      );
+      await (await h()).json("confluence_update_page", { pageId: "123", body: "New" });
+      expect(body.body.storage.value).toBe("<p>New</p>");
+    });
+
+    it("does not guard format storage", async () => {
+      let body: any; // eslint-disable-line @typescript-eslint/no-explicit-any
+      withStorage(IMAGE, (b) => (body = b));
+      await (await h()).json("confluence_update_page", { pageId: "123", body: "<p>S</p>", format: "storage" });
+      expect(body.body.storage.value).toBe("<p>S</p>");
+    });
+
+    it("does not guard title-only updates", async () => {
+      let body: any; // eslint-disable-line @typescript-eslint/no-explicit-any
+      withStorage(IMAGE, (b) => (body = b));
+      await (await h()).json("confluence_update_page", { pageId: "123", title: "T2" });
+      expect(body.body.storage.value).toBe(IMAGE);
+    });
+
+    it("describes the lossiness in get_page and update_page", async () => {
+      const tools = (await (await h()).client.listTools()).tools;
+      for (const name of ["confluence_get_page", "confluence_update_page"]) {
+        expect(tools.find((t) => t.name === name)!.description).toContain(
+          'Markdown is lossy for macros, images, page links, mentions and table formatting — edit such pages with format "storage"; ' +
+            "never write back a body read with truncated: true.",
+        );
+      }
+    });
+  });
+
+  it("confluence_get_page warns not to write back a truncated body", async () => {
+    mswServer.use(http.get(`${CAPI}/content/123`, () => HttpResponse.json(page())));
+    const harness = await h();
+    const cut = await harness.json("confluence_get_page", { pageId: "123", maxChars: 10 });
+    expect(cut.warning).toBe("Nội dung đã bị cắt (truncated). Không dùng nội dung này để ghi lại trang.");
+    expect("warning" in (await harness.json("confluence_get_page", { pageId: "123" }))).toBe(false);
+  });
+
   it("confluence_update_page needs body or title", async () => {
     const r = await (await h()).call("confluence_update_page", { pageId: "123" });
     expect(r.isError).toBe(true);

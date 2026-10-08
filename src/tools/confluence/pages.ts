@@ -1,5 +1,5 @@
 import { z } from "zod";
-import { storageToMarkdown } from "../../confluence/convert.js";
+import { isLossyForMarkdown, storageToMarkdown } from "../../confluence/convert.js";
 import { confluencePaged, slimPage, toStorage } from "../../confluence/format.js";
 import { defineTool, numericId, requireConfluence, type ToolContext } from "../define.js";
 
@@ -7,6 +7,9 @@ import { defineTool, numericId, requireConfluence, type ToolContext } from "../d
 
 const limit = z.number().int().min(1).max(100).default(25);
 const start = z.number().int().min(0).default(0);
+const LOSSY_NOTE =
+  'Markdown is lossy for macros, images, page links, mentions and table formatting — edit such pages with format "storage"; ' +
+  "never write back a body read with truncated: true.";
 const format = z.enum(["markdown", "storage"]).default("markdown").describe('"markdown" (default) or "storage" (Confluence XHTML)');
 
 export function register(ctx: ToolContext): void {
@@ -32,7 +35,8 @@ export function register(ctx: ToolContext): void {
     {
       description:
         "Get a page by pageId, or by spaceKey + title. The body is converted to Markdown by default; format \"storage\" returns raw Confluence XHTML. " +
-        "Long bodies are cut at maxChars.",
+        "Long bodies are cut at maxChars. " +
+        LOSSY_NOTE,
       input: {
         pageId: numericId.optional(),
         spaceKey: z.string().trim().min(1).optional(),
@@ -62,7 +66,7 @@ export function register(ctx: ToolContext): void {
         ancestors: (p.ancestors ?? []).map((a: any) => ({ id: a.id, title: a.title })),
         body: truncated ? full.slice(0, args.maxChars) : full,
         truncated,
-        ...(truncated && { totalChars: full.length }),
+        ...(truncated && { totalChars: full.length, warning: "Nội dung đã bị cắt (truncated). Không dùng nội dung này để ghi lại trang." }),
       };
     },
   );
@@ -119,7 +123,8 @@ export function register(ctx: ToolContext): void {
     {
       description:
         "Update a page's body and/or title (at least one required). body is Markdown by default; format \"storage\" takes Confluence XHTML. " +
-        "Pass version (from confluence_get_page) to fail instead of overwriting a newer edit.",
+        "Pass version (from confluence_get_page) to fail instead of overwriting a newer edit. " +
+        LOSSY_NOTE,
       input: {
         pageId: numericId,
         body: z.string().optional(),
@@ -127,6 +132,7 @@ export function register(ctx: ToolContext): void {
         version: z.number().int().min(1).optional(),
         format,
         minorEdit: z.boolean().default(false),
+        allowLossyMarkdown: z.boolean().default(false).describe("Overwrite with Markdown even if the current page has content Markdown cannot keep"),
       },
       write: true,
     },
@@ -140,7 +146,15 @@ export function register(ctx: ToolContext): void {
           `Xung đột phiên bản: trang ${args.pageId} đang ở version ${current}, không phải ${args.version}. Hãy đọc lại trang (confluence_get_page) rồi sửa lại.`,
         );
       }
-      const value = args.body !== undefined ? toStorage(args.body, args.format) : (cur.body?.storage?.value ?? "");
+      const curStorage: string = cur.body?.storage?.value ?? "";
+      if (args.body !== undefined && args.format === "markdown" && !args.allowLossyMarkdown && isLossyForMarkdown(curStorage)) {
+        throw new Error(
+          `Trang ${args.pageId} có nội dung không chuyển được sang Markdown (macro, ảnh, link trang, mention, định dạng bảng…). ` +
+            `Ghi đè bằng Markdown sẽ làm mất các phần này. Hãy đọc lại với format: "storage" và sửa bằng format: "storage", ` +
+            `hoặc truyền allowLossyMarkdown: true nếu chấp nhận mất.`,
+        );
+      }
+      const value = args.body !== undefined ? toStorage(args.body, args.format) : curStorage;
       const res = await c.put<any>(`/rest/api/content/${args.pageId}`, {
         type: "page",
         title: args.title ?? cur.title,

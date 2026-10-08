@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { markdownToStorage, storageToMarkdown } from "../src/confluence/convert.js";
+import { isLossyForMarkdown, markdownToStorage, storageToMarkdown } from "../src/confluence/convert.js";
 
 describe("markdownToStorage", () => {
   it("renders code blocks as the code macro", () => {
@@ -109,5 +109,15 @@ describe("storageToMarkdown", () => {
   });
   it("keeps siblings after a self-closing tag inside an inline run", () => {
     expect(storageToMarkdown('<p>a <em>b <ac:image><ri:attachment ri:filename="i.png" /></ac:image> c</em> d</p>')).toBe("a _b ![i.png] c_ d");
+  });
+});
+
+describe("isLossyForMarkdown", () => {
+  it("ignores attribute-like text outside tags", () => {
+    expect(isLossyForMarkdown("<p>set style=x and colspan=2 in text</p>")).toBe(false);
+  });
+  it("flags styled tags and ri: links", () => {
+    expect(isLossyForMarkdown('<td style="x">a</td>')).toBe(true);
+    expect(isLossyForMarkdown('<ac:link><ri:page ri:content-title="P" /></ac:link>')).toBe(true);
   });
 });
