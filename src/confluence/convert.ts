@@ -47,7 +47,7 @@ function fixEntities(html: string): string {
       i % 2
         ? part
         : part.replace(/&([A-Za-z][A-Za-z0-9]*);/g, (m, name: string) =>
-            XML_ENTITIES.has(name) ? m : name in NAMED ? `&#${NAMED[name]};` : `&amp;${name};`,
+            XML_ENTITIES.has(name) ? m : Object.hasOwn(NAMED, name) ? `&#${NAMED[name]};` : `&amp;${name};`,
           ),
     )
     .join("");

@@ -42,4 +42,7 @@ describe("markdownToStorage", () => {
   it("wraps block-level raw HTML in a paragraph", () => {
     expect(markdownToStorage("<div>\nhi\n</div>")).toBe("<p>&lt;div&gt;\nhi\n&lt;/div&gt;</p>");
   });
+  it("does not resolve inherited object keys as entities", () => {
+    expect(markdownToStorage("&toString; &constructor;")).toBe("<p>&amp;toString; &amp;constructor;</p>");
+  });
 });
