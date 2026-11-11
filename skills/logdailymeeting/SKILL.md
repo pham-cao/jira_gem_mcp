@@ -6,7 +6,7 @@ argument-hint: "[<ISSUE>]"
 
 # Daily meeting (gem-jira)
 
-Các tool trong skill này được gọi theo tên ngắn (`jira_get_issue`, `jira_search`, `jira_list_projects`, `confluence_search`, `confluence_fill_daily`). Tên đầy đủ trong Claude Code có tiền tố mcp, ví dụ `mcp__plugin_gem-jira_jira__confluence_fill_daily`; dùng đúng tool có hậu tố tương ứng.
+Các tool trong skill này được gọi theo tên ngắn (`confluence_search`, `confluence_fill_daily`). Tên đầy đủ trong Claude Code có tiền tố mcp, ví dụ `mcp__plugin_gem-jira_jira__confluence_fill_daily`; dùng đúng tool có hậu tố tương ứng.
 
 Skill này đọc dữ liệu do skill `logwork` ghi trong `./logwork/` (định dạng file xem skill `logwork`, mục "File logwork"). Skill này không ghi phiên và không ghi worklog.
 
@@ -38,10 +38,10 @@ Tool tự dựng macro từ `issueKey`, nên task Jira chỉ cần truyền `{ i
 ## Cấu hình: `./logwork/config.json`
 
 ```json
-{ "jiraProject": "ABC", "dailyPageUrl": "https://conf.gem-corp.tech/pages/viewpage.action?pageId=212026868", "dailyPageId": "212026868" }
+{ "dailyPageUrl": "https://conf.gem-corp.tech/pages/viewpage.action?pageId=212026868", "dailyPageId": "212026868" }
 ```
 
-Giữ nguyên các trường khác khi ghi file. Nếu chưa có `jiraProject`: hỏi người dùng "Repo này thuộc dự án Jira nào (mã dự án, ví dụ ABC)?", viết hoa câu trả lời, kiểm tra bằng `jira_list_projects` (mã phải trùng một `key`), không trùng thì hỏi lại, rồi ghi vào `config.json`.
+Giữ nguyên các trường khác khi ghi file (ví dụ `jiraProject` của skill `logwork`).
 
 ## Lấy ngày
 
@@ -59,10 +59,10 @@ Chạy khi người dùng bảo điền daily, hoặc khi skill `logwork` vừa 
 2. Dựng nội dung:
    - **today (mục A)** = hợp của, khử trùng theo key:
      - key của mọi task trong `./logwork/YYYY-MM-DD.md` hôm nay (lấy từ tiêu đề mục `## KEY — {summary}`);
-     - key trong kết quả `jira_search` với `jql: project = <jiraProject> AND assignee = currentUser() AND status = "In Progress"`;
      - KEY được truyền vào (nếu có);
      - task người dùng nói sẽ làm hôm nay (key, hoặc mô tả khi không có issue Jira).
      Task Jira là `{ issueKey }`, việc không có key là `{ text }`.
+     KHÔNG tự kéo thêm task Jira đang mở hay In Progress của người dùng: chỉ task đã bắt đầu bằng `logwork` hôm nay hoặc người dùng tự nêu mới lên daily.
    - **problems (mục B)** = các dòng `Vướng mắc` khác rỗng trong file logwork hôm nay, cộng vấn đề người dùng nêu; mảng chuỗi.
 3. `pageId`: lấy `dailyPageId` trong `config.json`. Chưa có thì hỏi người dùng link trang daily và trích số sau `pageId=` trong URL. Nếu người dùng chỉ đưa tên trang, gọi `confluence_search` với `cql: type=page AND title ~ "<tên>"`, cho người dùng chọn. Rồi ghi `dailyPageUrl` và `dailyPageId` vào `config.json`.
 4. Gọi `confluence_fill_daily` với `{ pageId, date, today, problems, preview: true }` rồi hiện nội dung ô (`after`, dạng dễ đọc như ví dụ ở "Nội dung ô daily"; có thể ghi kèm summary bên cạnh mỗi issue trong lời nhắn để người dùng dễ nhận ra, nhưng summary không được ghi lên trang) và `row`, `date` cho người dùng xem. Người dùng muốn thêm, bớt task hay vấn đề thì sửa danh sách và gọi preview lại.

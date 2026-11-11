@@ -78,7 +78,7 @@ Mỗi task một mục. Phiên đang mở ghi `HH:MM–…`.
 { "jiraProject": "ABC", "dailyPageUrl": "https://conf.gem-corp.tech/pages/viewpage.action?pageId=212026868", "dailyPageId": "212026868" }
 ```
 
-- `jiraProject`: mã dự án Jira của repo này (xem "Setup lần đầu"). Dùng để cảnh báo task khác dự án; skill `logdailymeeting` cũng dùng để lọc task Jira ở mục A (Today Task).
+- `jiraProject`: mã dự án Jira của repo này (xem "Setup lần đầu"). Dùng để cảnh báo task khác dự án.
 - `dailyPageUrl`, `dailyPageId`: do skill `logdailymeeting` quản lý; giữ nguyên khi ghi file.
 
 ## Lấy giờ
