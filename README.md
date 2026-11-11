@@ -182,7 +182,7 @@ Ví dụ một mục trong `./logwork/2026-10-08.md`:
 
 Skill `logdailymeeting` (có trong plugin `gem-jira`) điền trang daily meeting trên Confluence từ dữ liệu `./logwork/` của skill `logwork`. Skill tự kích hoạt khi bạn nói *"điền daily"*, *"fill daily"*, hoặc gọi trực tiếp `/gem-jira:logdailymeeting`.
 
-- Đọc logwork hôm nay, chỉ giữ task loại **Task, Sub-task, Bug, QA, Problem** (bỏ Backlog), rồi hiện **form để bạn chọn** task nào đưa lên daily.
+- Đọc logwork hôm nay, bỏ task loại **Story** và **ProductBacklog** (hạng mục lớn gồm nhiều task nhỏ), giữ các loại còn lại, rồi hiện **form để bạn chọn** task nào đưa lên daily.
 - Dựng nội dung A (Today Task: các task bạn đã chọn; không tự kéo các task Jira đang mở khác) và B (Problems: các vấn đề đang gặp trong ngày).
 - Mỗi task Jira được ghi bằng Jira issue macro (ô "Jira | ABC-123" kèm trạng thái), giống khi bạn dán URL issue vào Confluence.
 - Daily được điền vào ô của **ngày hôm nay**.

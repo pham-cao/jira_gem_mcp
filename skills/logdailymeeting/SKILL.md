@@ -60,8 +60,8 @@ Chạy khi người dùng bảo điền daily, hoặc khi skill `logwork` vừa 
    - Ứng viên = hợp của, khử trùng theo key: key của mọi task trong `./logwork/YYYY-MM-DD.md` hôm nay (lấy từ tiêu đề mục `## KEY — {summary}`), KEY được truyền vào (nếu có), và key người dùng tự nêu. KHÔNG tự kéo thêm task Jira đang mở hay In Progress của người dùng.
    - Không có file logwork hôm nay và không có key nào thì báo người dùng, hỏi có task nào muốn đưa lên không.
    - Gọi MỘT lần `jira_search` với `jql: key in (KEY1, KEY2, ...)` để lấy `summary`, `issuetype`, `status` của các ứng viên.
-   - Chỉ giữ task có loại issue (`issuetype`, so không phân biệt hoa thường) là **Task**, **Sub-task** (kể cả tên `Subtask`, `Task-subtask`), **Bug**, **QA** hoặc **Problem**. Loại bỏ task có loại **Backlog** hoặc trạng thái **Backlog**, và mọi loại khác (Story, Epic…).
-   - Báo ngắn một dòng các task bị loại và lý do, ví dụ `Không đưa lên daily: ABC-9 (Backlog), ABC-12 (Epic)`.
+   - Loại bỏ task có loại issue (`issuetype`, so không phân biệt hoa thường và bỏ qua khoảng trắng) là **Story** hoặc **ProductBacklog** (kể cả `Product Backlog`): đây là hạng mục lớn gồm nhiều task nhỏ. Giữ lại mọi loại khác (Task, Sub-task, Bug, QA, Problem…). Không lọc theo trạng thái (status), kể cả status Backlog.
+   - Báo ngắn một dòng các task bị loại và lý do, ví dụ `Không đưa lên daily: ABC-9 (Story), ABC-12 (ProductBacklog)`.
 3. Form chọn task: dùng công cụ hỏi có lựa chọn của Claude Code (`AskUserQuestion`, `multiSelect: true`) để người dùng chọn task sẽ đưa lên daily.
    - Mỗi lựa chọn: `label` = KEY, `description` = `{summary} · {issuetype} · {status}`; KEY vừa được truyền vào thì thêm `(vừa nhận)` vào `description`.
    - Mỗi câu hỏi tối đa 4 lựa chọn: nhiều hơn 4 task thì chia thành nhiều câu hỏi trong cùng một lần hỏi (tối đa 4 câu, tức 16 task). Hơn 16 task thì liệt kê đánh số trong tin nhắn và hỏi người dùng gõ số.
@@ -93,4 +93,4 @@ Không tốt:
 
 ## Tóm tắt luồng
 
-đọc logwork hôm nay -> `jira_search` lọc loại issue (Task, Sub-task, Bug, QA, Problem; bỏ Backlog) -> form chọn task -> dựng A và B -> `confluence_fill_daily` preview cột hôm nay -> hỏi -> `preview: false`.
+đọc logwork hôm nay -> `jira_search` bỏ loại Story và ProductBacklog -> form chọn task -> dựng A và B -> `confluence_fill_daily` preview cột hôm nay -> hỏi -> `preview: false`.
