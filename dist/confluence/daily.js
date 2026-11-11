@@ -15,18 +15,13 @@ const section = (title, items, emptyDash) => {
         return emptyDash ? `${head}<ol><li>—</li></ol>` : head;
     return `${head}<ol>${items.map((i) => `<li>${i}</li>`).join("")}</ol>`;
 };
-const item = (it, base) => {
-    if (!it.issueKey)
-        return esc(it.text);
-    const key = esc(it.issueKey);
-    return `${esc(it.text)} (<a href="${esc(base)}/browse/${key}">${key}</a>)`;
-};
+// An issue is written as its bare URL, not an <a> link: the team pastes the URL as is.
+const item = (it, base) => esc(it.issueKey ? `${base}/browse/${it.issueKey}` : (it.text ?? ""));
 /** Cell content following the page's Template row. */
 export function renderDailyCell(c, jiraBaseUrl) {
     const base = jiraBaseUrl.replace(/\/+$/, "");
-    return (section("A. Yesterday Task:", c.yesterday.map((i) => item(i, base)), true) +
-        section("B. Today Task:", c.today.map((i) => item(i, base)), true) +
-        section("C. Problems:", c.problems.map(esc), false));
+    return (section("A. Today Task:", c.today.map((i) => item(i, base)), true) +
+        section("B. Problems:", c.problems.map(esc), false));
 }
 /** Empty = nothing left after dropping <br />, &nbsp; and p/div/span wrappers. Any other tag (mention, image, macro…) counts as content. */
 export function isEmptyCell(inner) {

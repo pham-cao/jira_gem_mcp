@@ -22,6 +22,7 @@
 - [Bắt đầu nhanh](#bắt-đầu-nhanh)
 - [Cài đặt](#cài-đặt)
 - [Skill logwork](#skill-logwork)
+- [Skill logdailymeeting](#skill-logdailymeeting)
 - [Cấu hình](#cấu-hình)
 - [Danh sách tool](#danh-sách-tool)
 - [Ví dụ sử dụng](#ví-dụ-sử-dụng)
@@ -41,7 +42,7 @@
 
 Cả hai hệ thống dùng **Basic Auth (username/password)**, vì các phiên bản này chưa hỗ trợ Personal Access Token. Server chạy trên máy của mỗi người, mọi thao tác đều theo đúng quyền của tài khoản bạn cấu hình.
 
-Repo đồng thời là **Claude Code plugin `gem-jira`** (marketplace `gem-tools`): cài một lần là có cả MCP server lẫn skill [`logwork`](#skill-logwork).
+Repo đồng thời là **Claude Code plugin `gem-jira`** (marketplace `gem-tools`): cài một lần là có cả MCP server lẫn hai skill [`logwork`](#skill-logwork) và [`logdailymeeting`](#skill-logdailymeeting).
 
 ## Tính năng
 
@@ -59,7 +60,7 @@ Repo đồng thời là **Claude Code plugin `gem-jira`** (marketplace `gem-tool
 **Logwork & Daily** (plugin `gem-jira`)
 - Ghi lại task Jira đang làm, giờ bắt đầu/kết thúc từng phiên và việc đã làm vào `./logwork/`.
 - Đề xuất worklog Jira (làm tròn 15 phút) và chỉ ghi khi bạn đồng ý; không log trùng phiên.
-- Cuối ngày điền trang daily meeting trên Confluence (A. Yesterday / B. Today / C. Problems): chỉ sửa đúng ô của bạn, xem trước rồi mới ghi.
+- Điền trang daily meeting trên Confluence cho ngày hôm nay (A. Today Task / B. Problems), task Jira ghi bằng URL dạng chữ: chỉ sửa đúng ô của bạn, xem trước rồi mới ghi.
 
 **Vận hành**
 - Một tiến trình phục vụ cả Jira lẫn Confluence, dùng chung một bộ tài khoản.
@@ -88,7 +89,7 @@ Dùng client khác (Claude Desktop, VS Code, Cursor) hoặc không muốn cài p
 
 ### Cài dưới dạng plugin (khuyến nghị)
 
-Plugin `gem-jira` gồm MCP server và skill `logwork`, cài bằng hai lệnh trong Claude Code:
+Plugin `gem-jira` gồm MCP server và hai skill `logwork`, `logdailymeeting`, cài bằng hai lệnh trong Claude Code:
 
 ```text
 /plugin marketplace add pham-cao/jira_gem_mcp
@@ -108,7 +109,7 @@ Nếu trước đó bạn đã thêm server `jira` bằng `claude mcp add`, hãy
 
 Sau khi cài, CLI có thể báo một số mục userConfig "not yet set": các mục URL đã có giá trị mặc định, bỏ qua được khi đã nhập `username` và `password`.
 
-Hai cách dưới đây (A, B) dành cho client khác hoặc khi không dùng plugin; khi đó không có skill `logwork`.
+Hai cách dưới đây (A, B) dành cho client khác hoặc khi không dùng plugin; khi đó không có skill `logwork` và `logdailymeeting`.
 
 ### Cách A — `npx` từ git (không cần clone)
 
@@ -153,19 +154,16 @@ Cập nhật phiên bản mới: `git pull && npm ci && npm run build`, rồi kh
 
 ## Skill logwork
 
-Skill `logwork` (có trong plugin `gem-jira`) ghi lại thời gian làm task Jira trên máy bạn, đề xuất worklog và điền daily meeting trên Confluence. Skill tự kích hoạt khi bạn giao task để làm (vd *"làm task ABC-123"*, *"fix lỗi …/browse/ABC-123"*). Chỉ hỏi về một issue thì không bắt đầu ghi giờ. Hoặc gọi trực tiếp:
+Skill `logwork` (có trong plugin `gem-jira`) ghi lại thời gian làm task Jira trên máy bạn và đề xuất worklog. Daily meeting do skill riêng [`logdailymeeting`](#skill-logdailymeeting) đảm nhận. Skill tự kích hoạt khi bạn giao task để làm (vd *"làm task ABC-123"*, *"fix lỗi …/browse/ABC-123"*). Chỉ hỏi về một issue thì không bắt đầu ghi giờ. Hoặc gọi trực tiếp:
 
 | Lệnh | Tác dụng |
 |---|---|
 | `/gem-jira:logwork start ABC-123` | Bắt đầu task: lấy summary từ Jira, mở phiên mới (giờ lấy theo đồng hồ máy bằng lệnh `node`, không ước lượng) trong `./logwork/YYYY-MM-DD.md` |
 | `/gem-jira:logwork stop` | Kết thúc task: đóng phiên, đề xuất worklog (làm tròn lên 15 phút), **hỏi bạn trước** khi gọi `jira_add_worklog`. Phiên đã log được đánh dấu `[worklog <id>]` ngay trong file |
-| `/gem-jira:logwork daily` | Dựng nội dung A (Yesterday) / B (Today: task dở trong logwork hôm nay + task In Progress của bạn cùng dự án) / C (Problems), xem trước bằng `confluence_fill_daily` với `preview: true`, chỉ ghi lên Confluence sau khi bạn xác nhận |
 
 - Thư mục `./logwork/` nằm trong repo đang làm việc và được tự thêm vào `.git/info/exclude`, nên **không bị commit**.
-- Lần đầu dùng trong một repo, skill hỏi **mã dự án Jira** của repo (vd `ABC`) và lưu vào `./logwork/config.json`. Mục B của daily chỉ lấy task Jira **cùng mã dự án** đó; giao task thuộc dự án khác thì skill hỏi lại trước khi ghi.
-- `./logwork/config.json` cũng lưu link và `pageId` của trang daily; skill hỏi một lần nếu chưa có.
-- Daily được điền vào ô của **ngày làm việc kế tiếp** (bỏ thứ 7, chủ nhật).
-- Skill không bao giờ ghi worklog hoặc daily khi bạn chưa đồng ý rõ ràng.
+- Lần đầu dùng trong một repo, skill hỏi **mã dự án Jira** của repo (vd `ABC`) và lưu vào `./logwork/config.json`. Giao task thuộc dự án khác thì skill hỏi lại trước khi ghi.
+- Skill không bao giờ ghi worklog khi bạn chưa đồng ý rõ ràng.
 
 Ví dụ một mục trong `./logwork/2026-10-08.md`:
 
@@ -179,6 +177,17 @@ Ví dụ một mục trong `./logwork/2026-10-08.md`:
 - Vướng mắc: chờ KH cấp tài khoản test SSO
 - Jira worklog: chờ xác nhận
 ```
+
+## Skill logdailymeeting
+
+Skill `logdailymeeting` (có trong plugin `gem-jira`) điền trang daily meeting trên Confluence từ dữ liệu `./logwork/` của skill `logwork`. Skill tự kích hoạt khi bạn nói *"điền daily"*, *"fill daily"*, hoặc gọi trực tiếp `/gem-jira:logdailymeeting`.
+
+- Dựng nội dung A (Today Task: các task trong logwork hôm nay, task In Progress của bạn **cùng mã dự án** của repo, và task bạn nói sẽ làm) và B (Problems: các vấn đề đang gặp trong ngày).
+- Mỗi task Jira chỉ ghi URL, ví dụ `https://pm.gem-corp.tech/browse/ABC-123`: dán dạng chữ, không gắn link, không kèm summary.
+- Daily được điền vào ô của **ngày hôm nay**.
+- Khi bạn nhận một task Jira mới bằng skill `logwork`, skill hỏi có điền task đó lên daily hôm nay không.
+- `./logwork/config.json` lưu link và `pageId` của trang daily; skill hỏi một lần nếu chưa có.
+- Luôn xem trước bằng `confluence_fill_daily` với `preview: true`; skill chỉ ghi lên Confluence sau khi bạn xác nhận.
 
 ## Cấu hình
 
@@ -253,7 +262,7 @@ Chuyển ABC-123 sang Done và thêm comment "Đã deploy lên staging".
 Tạo trang con dưới trang 123456 với nội dung là release note của sprint vừa xong.
 Làm task ABC-123.            # skill logwork mở phiên, ghi giờ bắt đầu
 Xong task rồi, log work đi.  # đề xuất worklog, chờ bạn đồng ý
-Điền daily.                  # xem trước ô daily ngày mai, chờ xác nhận rồi ghi
+Điền daily.                  # skill logdailymeeting xem trước ô daily hôm nay, chờ xác nhận rồi ghi
 ```
 
 ## Bảo mật
@@ -274,8 +283,7 @@ Xong task rồi, log work đi.  # đề xuất worklog, chờ bạn đồng ý
 - **Trang dài bị cắt** khi đọc (mặc định 50 000 ký tự, trả `truncated: true`). Không ghi lại nội dung đã bị cắt.
 - **Không hỗ trợ** di chuyển trang, phân quyền và blog post riêng (blog post vẫn tìm và sửa được qua CQL).
 - **Daily meeting:** chỉ điền vào bảng có sẵn hàng của bạn và cột ngày. Bảng có ô gộp (`rowspan`/`colspan` ở tiêu đề ngày) hoặc ngày trùng lặp thì tool dừng và bảo điền thủ công; tool không tự thêm hàng/cột.
-- **Ngày làm việc kế tiếp** chỉ bỏ thứ 7/chủ nhật, không tính ngày lễ — kiểm tra ngày trong bản xem trước.
-- **Skill logwork** chạy trên Linux và macOS; chưa hỗ trợ Windows (cmd). Logwork chỉ gom trong repo hiện tại.
+- **Skill logwork và logdailymeeting** chạy trên Linux và macOS; chưa hỗ trợ Windows (cmd). Logwork chỉ gom trong repo hiện tại.
 
 ## Phát triển
 
@@ -298,7 +306,8 @@ claude plugin validate . # kiểm tra manifest plugin
 .claude-plugin/
 ├── plugin.json         # manifest plugin gem-jira: userConfig + MCP server
 └── marketplace.json    # marketplace gem-tools
-skills/logwork/SKILL.md # skill logwork & daily
+skills/logwork/SKILL.md          # skill logwork (phiên, worklog)
+skills/logdailymeeting/SKILL.md  # skill điền daily meeting
 dist/                   # bản build (commit cùng source)
 src/
 ├── index.ts            # entry point stdio: config → kiểm tra đăng nhập → server

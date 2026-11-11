@@ -183,14 +183,18 @@ describe("isEmptyCell", () => {
 });
 
 describe("renderDailyCell", () => {
-  it("renders the template with escaping and Jira links", () => {
-    expect(renderDailyCell({ yesterday: [{ text: "Sửa lỗi <SSO> & token", issueKey: "ABC-1" }], today: [], problems: [] }, "https://jira.test")).toBe(
-      '<p><strong>A. Yesterday Task:</strong></p><ol><li>Sửa lỗi &lt;SSO&gt; &amp; token (<a href="https://jira.test/browse/ABC-1">ABC-1</a>)</li></ol><p><strong>B. Today Task:</strong></p><ol><li>—</li></ol><p><strong>C. Problems:</strong></p>',
+  it("renders issues as bare plain-text URLs and escapes free text", () => {
+    expect(renderDailyCell({ today: [{ text: "ignored", issueKey: "ABC-1" }, { text: "Họp <KH> & demo" }], problems: [] }, "https://jira.test/")).toBe(
+      "<p><strong>A. Today Task:</strong></p><ol><li>https://jira.test/browse/ABC-1</li><li>Họp &lt;KH&gt; &amp; demo</li></ol><p><strong>B. Problems:</strong></p>",
     );
   });
 
+  it("renders a dash when there is no task", () => {
+    expect(renderDailyCell({ today: [], problems: [] }, "https://jira.test")).toBe("<p><strong>A. Today Task:</strong></p><ol><li>—</li></ol><p><strong>B. Problems:</strong></p>");
+  });
+
   it("escapes quotes and ]]> in problems", () => {
-    const out = renderDailyCell({ yesterday: [], today: [], problems: ['Chờ KH "cấp" quyền ]]>'] }, "https://jira.test");
-    expect(out.endsWith("<p><strong>C. Problems:</strong></p><ol><li>Chờ KH &quot;cấp&quot; quyền ]]&gt;</li></ol>")).toBe(true);
+    const out = renderDailyCell({ today: [], problems: ['Chờ KH "cấp" quyền ]]>'] }, "https://jira.test");
+    expect(out.endsWith("<p><strong>B. Problems:</strong></p><ol><li>Chờ KH &quot;cấp&quot; quyền ]]&gt;</li></ol>")).toBe(true);
   });
 });

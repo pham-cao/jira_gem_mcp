@@ -9,8 +9,8 @@ useMsw();
 
 const page = (version: number, value = DAILY_PAGE) => ({ id: "5", type: "page", title: "Daily", version: { number: version }, body: { storage: { value } } });
 const URL5 = `${CAPI}/content/5`;
-const content = { today: [{ text: "Làm API", issueKey: "abc-1 " }], yesterday: [{ text: "Viết test" }], problems: ["Chờ review"] };
-const AFTER = renderDailyCell({ yesterday: [{ text: "Viết test" }], today: [{ text: "Làm API", issueKey: "ABC-1" }], problems: ["Chờ review"] }, BASE_URL);
+const content = { today: [{ issueKey: "abc-1 " }, { text: "Viết test" }], problems: ["Chờ review"] };
+const AFTER = renderDailyCell({ today: [{ issueKey: "ABC-1" }, { text: "Viết test" }], problems: ["Chờ review"] }, BASE_URL);
 
 function setup(gets: unknown[], puts: Array<number | object> = []) {
   const bodies: any[] = [];
@@ -102,6 +102,12 @@ describe("confluence_fill_daily", () => {
   it("rejects an invalid issueKey without any request", async () => {
     const h = await connectTools([register], { confluence: true });
     const r = await h.call("confluence_fill_daily", { pageId: "5", date: "2026-10-08", today: [{ text: "x", issueKey: "bad key" }] });
+    expect(r.isError).toBe(true);
+  });
+
+  it("rejects an item with neither text nor issueKey", async () => {
+    const h = await connectTools([register], { confluence: true });
+    const r = await h.call("confluence_fill_daily", { pageId: "5", date: "2026-10-08", today: [{}] });
     expect(r.isError).toBe(true);
   });
 

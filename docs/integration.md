@@ -137,7 +137,7 @@ Scope `user` và `local` được lưu trong `~/.claude.json`. Có thể sửa t
 
 ### 3.4 Cài dưới dạng plugin (khuyến nghị)
 
-Plugin `gem-jira` (marketplace `gem-tools`) đóng gói sẵn MCP server (đã build trong `dist/`) và skill `logwork`, nên không cần `npx` hay clone.
+Plugin `gem-jira` (marketplace `gem-tools`) đóng gói sẵn MCP server (đã build trong `dist/`) và hai skill `logwork`, `logdailymeeting`, nên không cần `npx` hay clone.
 
 ```text
 /plugin marketplace add pham-cao/jira_gem_mcp
@@ -155,10 +155,10 @@ Claude Code hỏi các giá trị sau khi cài:
 
 - **Đã cài server `jira` bằng `claude mcp add`?** Gỡ bản cũ để tránh trùng tool: `claude mcp remove jira -s user` (hoặc `-s local`, hoặc xoá mục `jira` khỏi `.mcp.json` của project); kiểm tra lại bằng `claude mcp list`.
 - **CLI báo userConfig "not yet set"?** Các mục URL đã có giá trị mặc định, bỏ qua được khi đã nhập `username` và `password`.
-- **Tên tool.** Trong plugin, tool có tiền tố dạng `mcp__plugin_gem-jira_jira__jira_get_issue`. Skill `logwork` tự dùng đúng tên.
-- **Skill.** Dùng `/gem-jira:logwork start <ISSUE>`, `/gem-jira:logwork stop`, `/gem-jira:logwork daily`; xem [README › Skill logwork](../README.md#skill-logwork). Dữ liệu ghi vào `./logwork/` (git-excluded).
+- **Tên tool.** Trong plugin, tool có tiền tố dạng `mcp__plugin_gem-jira_jira__jira_get_issue`. Các skill tự dùng đúng tên.
+- **Skill.** Dùng `/gem-jira:logwork start <ISSUE>`, `/gem-jira:logwork stop` và `/gem-jira:logdailymeeting`; xem [README › Skill logwork](../README.md#skill-logwork) và [README › Skill logdailymeeting](../README.md#skill-logdailymeeting). Dữ liệu ghi vào `./logwork/` (git-excluded).
 - **Kiểm tra.** `/plugin` để xem trạng thái, `/mcp` để thấy server `jira` ở trạng thái connected.
-- **Cập nhật.** `/plugin marketplace update gem-tools`, rồi cập nhật plugin và khởi động lại Claude Code. Các cách khác (3.1–3.3) vẫn dùng được; khi đó không có skill `logwork`.
+- **Cập nhật.** `/plugin marketplace update gem-tools`, rồi cập nhật plugin và khởi động lại Claude Code. Các cách khác (3.1–3.3) vẫn dùng được; khi đó không có skill `logwork` và `logdailymeeting`.
 
 ## 4. Claude Desktop
 

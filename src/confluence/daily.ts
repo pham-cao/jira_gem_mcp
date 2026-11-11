@@ -2,12 +2,11 @@
 // Never parse-and-reserialise: the page is shared, so every byte outside the target cell must stay identical.
 
 export interface DailyItem {
-  text: string;
+  text?: string;
   issueKey?: string;
 }
 
 export interface DailyContent {
-  yesterday: DailyItem[];
   today: DailyItem[];
   problems: string[];
 }
@@ -40,19 +39,15 @@ const section = (title: string, items: string[], emptyDash: boolean): string => 
   return `${head}<ol>${items.map((i) => `<li>${i}</li>`).join("")}</ol>`;
 };
 
-const item = (it: DailyItem, base: string): string => {
-  if (!it.issueKey) return esc(it.text);
-  const key = esc(it.issueKey);
-  return `${esc(it.text)} (<a href="${esc(base)}/browse/${key}">${key}</a>)`;
-};
+// An issue is written as its bare URL, not an <a> link: the team pastes the URL as is.
+const item = (it: DailyItem, base: string): string => esc(it.issueKey ? `${base}/browse/${it.issueKey}` : (it.text ?? ""));
 
 /** Cell content following the page's Template row. */
 export function renderDailyCell(c: DailyContent, jiraBaseUrl: string): string {
   const base = jiraBaseUrl.replace(/\/+$/, "");
   return (
-    section("A. Yesterday Task:", c.yesterday.map((i) => item(i, base)), true) +
-    section("B. Today Task:", c.today.map((i) => item(i, base)), true) +
-    section("C. Problems:", c.problems.map(esc), false)
+    section("A. Today Task:", c.today.map((i) => item(i, base)), true) +
+    section("B. Problems:", c.problems.map(esc), false)
   );
 }
 

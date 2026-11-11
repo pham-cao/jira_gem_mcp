@@ -725,25 +725,24 @@ Ví dụ: `{ "pageId": "208764902", "filePath": "/home/caopv/report.pdf", "comme
 
 ### `confluence_fill_daily`
 
-Điền ô của **chính bạn** cho một ngày trong trang daily meeting của team (các mục A. Yesterday Task / B. Today Task / C. Problems). Tool đọc trang, tìm cột ngày và hàng của bạn (nhận diện theo user key), chỉ thay nội dung đúng ô đó. → `GET` + `PUT /rest/api/content/{id}`
+Điền ô của **chính bạn** cho một ngày trong trang daily meeting của team (các mục A. Today Task / B. Problems). Tool đọc trang, tìm cột ngày và hàng của bạn (nhận diện theo user key), chỉ thay nội dung đúng ô đó. → `GET` + `PUT /rest/api/content/{id}`
 
 | Tham số | Kiểu | Bắt buộc | Mặc định | Mô tả |
 |---|---|---|---|---|
 | `pageId` | string | ✓ | | Trang daily (chuỗi số) |
 | `date` | string | ✓ | | Ngày của cột, dạng `YYYY-MM-DD` |
-| `yesterday` | `{text, issueKey?}[]` | | `[]` | Mục A. `issueKey` (nếu có) hiển thị thành link tới issue Jira |
-| `today` | `{text, issueKey?}[]` | | `[]` | Mục B, cùng dạng với `yesterday` |
-| `problems` | string[] | | `[]` | Mục C |
+| `today` | `{text?, issueKey?}[]` | | `[]` | Mục A. Mỗi phần tử cần `text` hoặc `issueKey`. Có `issueKey` thì ô chỉ ghi URL issue dạng chữ (không gắn link, bỏ qua `text`), ví dụ `https://pm.gem-corp.tech/browse/ABC-123` |
+| `problems` | string[] | | `[]` | Mục B |
 | `preview` | boolean | | `true` | `true`: chỉ xem trước, **không ghi**. `false`: ghi lên trang |
 | `overwrite` | boolean | | `false` | Cho phép ghi đè ô đã có nội dung |
 
 Quy trình dùng: gọi với `preview: true`, đọc `before`/`after`, và chỉ gọi lại với `preview: false` khi người dùng đã xác nhận.
 
-Ví dụ: `{ "pageId": "212026868", "date": "2026-10-09", "today": [{ "text": "Làm API refresh token", "issueKey": "ABC-123" }], "preview": true }`
+Ví dụ: `{ "pageId": "212026868", "date": "2026-10-09", "today": [{ "issueKey": "ABC-123" }], "preview": true }`
 
 Kết quả: `{preview, date, row, before, after, version, url}`
 - `row`: nhãn hàng của bạn trên trang; `before`/`after`: nội dung ô (storage XHTML) trước và sau khi điền; `version`: version hiện tại của trang (khi `preview: false` là version mới sau khi ghi); `url`: link trang.
-- Mục A và B rỗng được điền dấu `—`; mục C rỗng chỉ có tiêu đề.
+- Mục A rỗng được điền dấu `—`; mục B rỗng chỉ có tiêu đề.
 - Nếu trang bị người khác sửa giữa lúc đọc và ghi (409), tool đọc lại và làm lại một lần, kể cả bước kiểm tra ghi đè.
 
 Các lỗi:

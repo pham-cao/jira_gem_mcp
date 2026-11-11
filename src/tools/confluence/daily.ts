@@ -5,10 +5,13 @@ import { defineTool, issueKey, numericId, requireConfluence, type ToolContext } 
 
 /* eslint-disable @typescript-eslint/no-explicit-any -- Confluence payloads are untyped JSON */
 
-const item = z.object({
-  text: z.string().min(1),
-  issueKey: z.string().transform(issueKey).pipe(z.string().regex(/^[A-Z][A-Z0-9_]*-\d+$/, "issueKey không hợp lệ")).optional(),
-});
+// With issueKey the cell shows only the issue URL; text is for tasks without a Jira issue.
+const item = z
+  .object({
+    text: z.string().min(1).optional(),
+    issueKey: z.string().transform(issueKey).pipe(z.string().regex(/^[A-Z][A-Z0-9_]*-\d+$/, "issueKey không hợp lệ")).optional(),
+  })
+  .refine((i) => i.text || i.issueKey, "Cần text hoặc issueKey");
 
 export function register(ctx: ToolContext): void {
   defineTool(
@@ -16,13 +19,12 @@ export function register(ctx: ToolContext): void {
     "confluence_fill_daily",
     {
       description:
-        "Fill your own cell for one date in the team's daily-meeting page (A. Yesterday / B. Today / C. Problems). " +
+        "Fill your own cell for one date in the team's daily-meeting page (A. Today Task / B. Problems). " +
         "Always call with preview: true (default) first, show the user the \"after\" content, and only call again with preview: false once they confirm. " +
         "Refuses to replace a non-empty cell unless overwrite: true.",
       input: {
         pageId: numericId,
         date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, "date phải có dạng YYYY-MM-DD"),
-        yesterday: z.array(item).default([]),
         today: z.array(item).default([]),
         problems: z.array(z.string().min(1)).default([]),
         preview: z.boolean().default(true),
@@ -35,7 +37,7 @@ export function register(ctx: ToolContext): void {
       const me = await c.get<any>("/rest/api/user/current");
       // Without a userKey no row can match; say so instead of a misleading no-row error.
       if (typeof me?.userKey !== "string" || !me.userKey) throw new Error("Không lấy được userKey của tài khoản Confluence hiện tại.");
-      const after = renderDailyCell({ yesterday: args.yesterday, today: args.today, problems: args.problems }, ctx.client.baseUrl);
+      const after = renderDailyCell({ today: args.today, problems: args.problems }, ctx.client.baseUrl);
       const url = `${c.baseUrl}/pages/viewpage.action?pageId=${args.pageId}`;
 
       // One pass: read the page, locate the cell, check overwrite, then preview or PUT.
