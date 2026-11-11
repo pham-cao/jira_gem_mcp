@@ -1,6 +1,6 @@
 {
   "name": "gem-jira",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "description": "Jira Server and Confluence tools for GEM, with a logwork workflow",
   "author": { "name": "pham-cao" },
   "repository": "https://github.com/pham-cao/jira_gem_mcp",
