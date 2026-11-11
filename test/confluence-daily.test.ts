@@ -2,7 +2,7 @@ import { http, HttpResponse } from "msw";
 import { describe, expect, it } from "vitest";
 import { locateDailyCell, renderDailyCell, replaceCell } from "../src/confluence/daily.js";
 import { register } from "../src/tools/confluence/daily.js";
-import { BASE_URL, CAPI, CONF_BASE, connectTools, mswServer, useMsw } from "./helpers.js";
+import { CAPI, CONF_BASE, connectTools, mswServer, useMsw } from "./helpers.js";
 import { DAILY_PAGE, ME } from "./fixtures/daily-page.js";
 
 useMsw();
@@ -10,7 +10,7 @@ useMsw();
 const page = (version: number, value = DAILY_PAGE) => ({ id: "5", type: "page", title: "Daily", version: { number: version }, body: { storage: { value } } });
 const URL5 = `${CAPI}/content/5`;
 const content = { today: [{ issueKey: "abc-1 " }, { text: "Viết test" }], problems: ["Chờ review"] };
-const AFTER = renderDailyCell({ today: [{ issueKey: "ABC-1" }, { text: "Viết test" }], problems: ["Chờ review"] }, BASE_URL);
+const AFTER = renderDailyCell({ today: [{ issueKey: "ABC-1" }, { text: "Viết test" }], problems: ["Chờ review"] });
 
 function setup(gets: unknown[], puts: Array<number | object> = []) {
   const bodies: any[] = [];
@@ -103,6 +103,16 @@ describe("confluence_fill_daily", () => {
     const h = await connectTools([register], { confluence: true });
     const r = await h.call("confluence_fill_daily", { pageId: "5", date: "2026-10-08", today: [{ text: "x", issueKey: "bad key" }] });
     expect(r.isError).toBe(true);
+  });
+
+  it("points the Jira macro at the server of a macro already on the page", async () => {
+    const existing = `<p><ac:structured-macro ac:name="jira" ac:schema-version="1" ac:macro-id="m1"><ac:parameter ac:name="server">JIRA GEM</ac:parameter><ac:parameter ac:name="serverId">srv-1</ac:parameter><ac:parameter ac:name="key">X-9</ac:parameter></ac:structured-macro></p>`;
+    setup([page(2, existing + DAILY_PAGE)]);
+    const h = await connectTools([register], { confluence: true });
+    const r = await h.json("confluence_fill_daily", { pageId: "5", date: "2026-10-08", today: [{ issueKey: "ABC-1" }] });
+    expect(r.after).toContain(
+      '<li><ac:structured-macro ac:name="jira" ac:schema-version="1"><ac:parameter ac:name="server">JIRA GEM</ac:parameter><ac:parameter ac:name="serverId">srv-1</ac:parameter><ac:parameter ac:name="key">ABC-1</ac:parameter></ac:structured-macro></li>',
+    );
   });
 
   it("rejects an item with neither text nor issueKey", async () => {

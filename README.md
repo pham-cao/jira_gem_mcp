@@ -60,7 +60,7 @@ Repo đồng thời là **Claude Code plugin `gem-jira`** (marketplace `gem-tool
 **Logwork & Daily** (plugin `gem-jira`)
 - Ghi lại task Jira đang làm, giờ bắt đầu/kết thúc từng phiên và việc đã làm vào `./logwork/`.
 - Đề xuất worklog Jira (làm tròn 15 phút) và chỉ ghi khi bạn đồng ý; không log trùng phiên.
-- Điền trang daily meeting trên Confluence cho ngày hôm nay (A. Today Task / B. Problems), task Jira ghi bằng URL dạng chữ: chỉ sửa đúng ô của bạn, xem trước rồi mới ghi.
+- Điền trang daily meeting trên Confluence cho ngày hôm nay (A. Today Task / B. Problems), task Jira hiện bằng Jira issue macro: chỉ sửa đúng ô của bạn, xem trước rồi mới ghi.
 
 **Vận hành**
 - Một tiến trình phục vụ cả Jira lẫn Confluence, dùng chung một bộ tài khoản.
@@ -183,7 +183,7 @@ Ví dụ một mục trong `./logwork/2026-10-08.md`:
 Skill `logdailymeeting` (có trong plugin `gem-jira`) điền trang daily meeting trên Confluence từ dữ liệu `./logwork/` của skill `logwork`. Skill tự kích hoạt khi bạn nói *"điền daily"*, *"fill daily"*, hoặc gọi trực tiếp `/gem-jira:logdailymeeting`.
 
 - Dựng nội dung A (Today Task: các task trong logwork hôm nay, task In Progress của bạn **cùng mã dự án** của repo, và task bạn nói sẽ làm) và B (Problems: các vấn đề đang gặp trong ngày).
-- Mỗi task Jira chỉ ghi URL, ví dụ `https://pm.gem-corp.tech/browse/ABC-123`: dán dạng chữ, không gắn link, không kèm summary.
+- Mỗi task Jira được ghi bằng Jira issue macro (ô "Jira | ABC-123" kèm trạng thái), giống khi bạn dán URL issue vào Confluence.
 - Daily được điền vào ô của **ngày hôm nay**.
 - Khi bạn nhận một task Jira mới bằng skill `logwork`, skill hỏi có điền task đó lên daily hôm nay không.
 - `./logwork/config.json` lưu link và `pageId` của trang daily; skill hỏi một lần nếu chưa có.

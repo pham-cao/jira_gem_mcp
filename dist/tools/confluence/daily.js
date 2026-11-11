@@ -1,9 +1,9 @@
 import { z } from "zod";
-import { isEmptyCell, locateDailyCell, renderDailyCell, replaceCell } from "../../confluence/daily.js";
+import { isEmptyCell, jiraServerOf, locateDailyCell, renderDailyCell, replaceCell } from "../../confluence/daily.js";
 import { HttpError } from "../../http/errors.js";
 import { defineTool, issueKey, numericId, requireConfluence } from "../define.js";
 /* eslint-disable @typescript-eslint/no-explicit-any -- Confluence payloads are untyped JSON */
-// With issueKey the cell shows only the issue URL; text is for tasks without a Jira issue.
+// With issueKey the cell shows the Jira issue macro; text is for tasks without a Jira issue.
 const item = z
     .object({
     text: z.string().min(1).optional(),
@@ -30,13 +30,13 @@ export function register(ctx) {
         // Without a userKey no row can match; say so instead of a misleading no-row error.
         if (typeof me?.userKey !== "string" || !me.userKey)
             throw new Error("Không lấy được userKey của tài khoản Confluence hiện tại.");
-        const after = renderDailyCell({ today: args.today, problems: args.problems }, ctx.client.baseUrl);
         const url = `${c.baseUrl}/pages/viewpage.action?pageId=${args.pageId}`;
         // One pass: read the page, locate the cell, check overwrite, then preview or PUT.
         const attempt = async () => {
             const page = await c.get(`/rest/api/content/${args.pageId}`, { expand: "body.storage,version" });
             const storage = page.body?.storage?.value ?? "";
             const cell = locateDailyCell(storage, args.date, me.userKey);
+            const after = renderDailyCell({ today: args.today, problems: args.problems }, jiraServerOf(storage));
             const before = cell.inner;
             if (!isEmptyCell(before) && !args.overwrite) {
                 throw new Error(`Ô ngày ${args.date} của bạn đã có nội dung. Xem "before" và gọi lại với overwrite: true nếu muốn ghi đè.\n\n${before}`);

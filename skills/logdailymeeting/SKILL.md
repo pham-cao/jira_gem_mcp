@@ -24,7 +24,7 @@ Skill này đọc dữ liệu do skill `logwork` ghi trong `./logwork/` (định
 - **A. Today Task:** các task sẽ làm và đang làm trong hôm nay.
 - **B. Problems:** các vấn đề đang gặp trong ngày.
 
-Task Jira chỉ ghi URL của issue, dán trực tiếp dạng chữ, KHÔNG gắn link và không kèm summary. Ví dụ:
+Task Jira được ghi bằng Jira issue macro, giống hệt khi dán URL issue vào trình soạn thảo Confluence (hiện thành ô "Jira | KEY" kèm trạng thái), không kèm summary. Ví dụ (dạng dễ đọc):
 
 ```
 A. Today Task:
@@ -33,7 +33,7 @@ B. Problems:
   1. Chờ KH cấp tài khoản test SSO
 ```
 
-Tool tự dựng URL từ `issueKey`, nên task Jira chỉ cần truyền `{ issueKey: KEY }`. Việc không có issue Jira thì truyền `{ text: <mô tả ngắn> }`.
+Tool tự dựng macro từ `issueKey`, nên task Jira chỉ cần truyền `{ issueKey: KEY }`; không tự nhét URL hay macro vào `text`. Việc không có issue Jira thì truyền `{ text: <mô tả ngắn> }`.
 
 ## Cấu hình: `./logwork/config.json`
 
@@ -65,7 +65,7 @@ Chạy khi người dùng bảo điền daily, hoặc khi skill `logwork` vừa 
      Task Jira là `{ issueKey }`, việc không có key là `{ text }`.
    - **problems (mục B)** = các dòng `Vướng mắc` khác rỗng trong file logwork hôm nay, cộng vấn đề người dùng nêu; mảng chuỗi.
 3. `pageId`: lấy `dailyPageId` trong `config.json`. Chưa có thì hỏi người dùng link trang daily và trích số sau `pageId=` trong URL. Nếu người dùng chỉ đưa tên trang, gọi `confluence_search` với `cql: type=page AND title ~ "<tên>"`, cho người dùng chọn. Rồi ghi `dailyPageUrl` và `dailyPageId` vào `config.json`.
-4. Gọi `confluence_fill_daily` với `{ pageId, date, today, problems, preview: true }` rồi hiện nội dung ô (`after`, dạng dễ đọc như ví dụ ở "Nội dung ô daily"; có thể ghi kèm summary bên cạnh mỗi URL trong lời nhắn để người dùng dễ nhận ra, nhưng summary không được ghi lên trang) và `row`, `date` cho người dùng xem. Người dùng muốn thêm, bớt task hay vấn đề thì sửa danh sách và gọi preview lại.
+4. Gọi `confluence_fill_daily` với `{ pageId, date, today, problems, preview: true }` rồi hiện nội dung ô (`after`, dạng dễ đọc như ví dụ ở "Nội dung ô daily"; có thể ghi kèm summary bên cạnh mỗi issue trong lời nhắn để người dùng dễ nhận ra, nhưng summary không được ghi lên trang) và `row`, `date` cho người dùng xem. Người dùng muốn thêm, bớt task hay vấn đề thì sửa danh sách và gọi preview lại.
 5. Xử lý lỗi (giữ nguyên văn thông báo của tool khi báo người dùng):
    - Lỗi `Trang daily không có cột cho ngày ...` (no-date): hỏi link trang daily mới, cập nhật `config.json`, gọi lại preview với `pageId` mới.
    - Lỗi `Không tìm thấy hàng của bạn ...` (no-row): báo người dùng nhờ người quản lý trang thêm hàng; dừng, không tự sửa trang.
@@ -75,7 +75,7 @@ Chạy khi người dùng bảo điền daily, hoặc khi skill `logwork` vừa 
 
 ## Phong cách viết
 
-Mục A: task Jira chỉ có URL; việc không có key thì `text` ngắn gọn. Mục B viết theo vấn đề và ảnh hưởng, ngắn gọn, không ghi thao tác kỹ thuật vụn vặt.
+Mục A: task Jira chỉ cần `issueKey`; việc không có key thì `text` ngắn gọn. Mục B viết theo vấn đề và ảnh hưởng, ngắn gọn, không ghi thao tác kỹ thuật vụn vặt.
 
 Tốt:
 - Chờ KH cấp tài khoản test SSO

@@ -39,14 +39,35 @@ const section = (title: string, items: string[], emptyDash: boolean): string => 
   return `${head}<ol>${items.map((i) => `<li>${i}</li>`).join("")}</ol>`;
 };
 
-// An issue is written as its bare URL, not an <a> link: the team pastes the URL as is.
-const item = (it: DailyItem, base: string): string => esc(it.issueKey ? `${base}/browse/${it.issueKey}` : (it.text ?? ""));
+export interface JiraServer {
+  server: string;
+  serverId: string;
+}
+
+/** server/serverId of the first Jira macro already on the page (kept as stored), so new macros use the same application link. */
+export function jiraServerOf(storage: string): JiraServer | undefined {
+  for (const m of storage.matchAll(/<ac:structured-macro\b[^>]*\bac:name="jira"[^>]*>([\s\S]*?)<\/ac:structured-macro>/g)) {
+    const param = (n: string) => new RegExp(`<ac:parameter ac:name="${n}">([^<]*)</ac:parameter>`).exec(m[1])?.[1];
+    const server = param("server");
+    const serverId = param("serverId");
+    if (server && serverId) return { server, serverId };
+  }
+  return undefined;
+}
+
+// An issue becomes the Jira issue macro, the same thing Confluence makes when a Jira URL is pasted in the editor.
+// Without a known server Confluence falls back to its primary Jira application link.
+const jiraMacro = (key: string, s?: JiraServer): string =>
+  `<ac:structured-macro ac:name="jira" ac:schema-version="1">` +
+  (s ? `<ac:parameter ac:name="server">${s.server}</ac:parameter><ac:parameter ac:name="serverId">${s.serverId}</ac:parameter>` : "") +
+  `<ac:parameter ac:name="key">${esc(key)}</ac:parameter></ac:structured-macro>`;
+
+const item = (it: DailyItem, s?: JiraServer): string => (it.issueKey ? jiraMacro(it.issueKey, s) : esc(it.text ?? ""));
 
 /** Cell content following the page's Template row. */
-export function renderDailyCell(c: DailyContent, jiraBaseUrl: string): string {
-  const base = jiraBaseUrl.replace(/\/+$/, "");
+export function renderDailyCell(c: DailyContent, jira?: JiraServer): string {
   return (
-    section("A. Today Task:", c.today.map((i) => item(i, base)), true) +
+    section("A. Today Task:", c.today.map((i) => item(i, jira)), true) +
     section("B. Problems:", c.problems.map(esc), false)
   );
 }

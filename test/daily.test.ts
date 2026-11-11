@@ -183,18 +183,19 @@ describe("isEmptyCell", () => {
 });
 
 describe("renderDailyCell", () => {
-  it("renders issues as bare plain-text URLs and escapes free text", () => {
-    expect(renderDailyCell({ today: [{ text: "ignored", issueKey: "ABC-1" }, { text: "Họp <KH> & demo" }], problems: [] }, "https://jira.test/")).toBe(
-      "<p><strong>A. Today Task:</strong></p><ol><li>https://jira.test/browse/ABC-1</li><li>Họp &lt;KH&gt; &amp; demo</li></ol><p><strong>B. Problems:</strong></p>",
+  it("renders issues as Jira macros and escapes free text", () => {
+    expect(renderDailyCell({ today: [{ text: "ignored", issueKey: "ABC-1" }, { text: "Họp <KH> & demo" }], problems: [] })).toBe(
+      '<p><strong>A. Today Task:</strong></p><ol><li><ac:structured-macro ac:name="jira" ac:schema-version="1"><ac:parameter ac:name="key">ABC-1</ac:parameter></ac:structured-macro></li>' +
+        "<li>Họp &lt;KH&gt; &amp; demo</li></ol><p><strong>B. Problems:</strong></p>",
     );
   });
 
   it("renders a dash when there is no task", () => {
-    expect(renderDailyCell({ today: [], problems: [] }, "https://jira.test")).toBe("<p><strong>A. Today Task:</strong></p><ol><li>—</li></ol><p><strong>B. Problems:</strong></p>");
+    expect(renderDailyCell({ today: [], problems: [] })).toBe("<p><strong>A. Today Task:</strong></p><ol><li>—</li></ol><p><strong>B. Problems:</strong></p>");
   });
 
   it("escapes quotes and ]]> in problems", () => {
-    const out = renderDailyCell({ today: [], problems: ['Chờ KH "cấp" quyền ]]>'] }, "https://jira.test");
+    const out = renderDailyCell({ today: [], problems: ['Chờ KH "cấp" quyền ]]>'] });
     expect(out.endsWith("<p><strong>B. Problems:</strong></p><ol><li>Chờ KH &quot;cấp&quot; quyền ]]&gt;</li></ol>")).toBe(true);
   });
 });

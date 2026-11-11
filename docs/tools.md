@@ -731,7 +731,7 @@ Ví dụ: `{ "pageId": "208764902", "filePath": "/home/caopv/report.pdf", "comme
 |---|---|---|---|---|
 | `pageId` | string | ✓ | | Trang daily (chuỗi số) |
 | `date` | string | ✓ | | Ngày của cột, dạng `YYYY-MM-DD` |
-| `today` | `{text?, issueKey?}[]` | | `[]` | Mục A. Mỗi phần tử cần `text` hoặc `issueKey`. Có `issueKey` thì ô chỉ ghi URL issue dạng chữ (không gắn link, bỏ qua `text`), ví dụ `https://pm.gem-corp.tech/browse/ABC-123` |
+| `today` | `{text?, issueKey?}[]` | | `[]` | Mục A. Mỗi phần tử cần `text` hoặc `issueKey`. Có `issueKey` thì ô ghi Jira issue macro (giống khi dán URL issue vào trình soạn thảo, bỏ qua `text`); `server`/`serverId` lấy từ Jira macro đầu tiên có sẵn trên trang, không có thì Confluence dùng Jira application link chính |
 | `problems` | string[] | | `[]` | Mục B |
 | `preview` | boolean | | `true` | `true`: chỉ xem trước, **không ghi**. `false`: ghi lên trang |
 | `overwrite` | boolean | | `false` | Cho phép ghi đè ô đã có nội dung |
