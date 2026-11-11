@@ -103,7 +103,7 @@ Phiên kéo qua nửa đêm: dùng file của ngày bắt đầu làm việc (v�
 4. Sau khi người dùng xác nhận, lấy giờ hiện tại (giờ bắt đầu phiên là lúc xác nhận). Đọc `./logwork/YYYY-MM-DD.md` của hôm nay (tạo nếu chưa có). Nếu đang có phiên mở (`HH:MM–…`) của task khác thì đóng phiên đó trước bằng giờ hiện tại, tính lại `(XhYm)`. Nếu task vừa đóng còn phiên chưa đánh dấu thì chạy ngay bước 2–5 của "Kết thúc task và đề xuất worklog" cho task đó (vẫn HỎI trước, không tự log).
 5. Thêm mục `## KEY — {summary}` mới, hoặc thêm phiên mới vào mục đã có trong ngày, với giờ bắt đầu là giờ hiện tại. Trạng thái `in-progress`. Khi thêm phiên vào mục đã có: giữ nguyên mọi dấu `[worklog …]`/`[bỏ qua]` và các dòng `Đã làm`, chỉ nối thêm ` · HH:MM–…` và đặt dòng `Jira worklog:` thành `chờ xác nhận` (mục mới cũng ghi `chờ xác nhận`).
 6. Thông báo ngắn đúng một dòng: `Logwork: bắt đầu {KEY} lúc {HH:MM}`.
-7. Nếu bước 5 vừa tạo mục MỚI cho task trong ngày (không phải thêm phiên vào mục đã có), HỎI: "Điền {KEY} lên daily meeting hôm nay không?". Đồng ý thì chạy skill `logdailymeeting` với đối số `{KEY}`; từ chối thì thôi, không hỏi lại cho task này trong ngày.
+7. Nếu bước 5 vừa tạo mục MỚI cho task trong ngày (không phải thêm phiên vào mục đã có) và task thuộc loại được đưa lên daily (Task, Sub-task, Bug, QA, Problem; không phải Backlog, theo `issuetype`/`status` lấy ở bước 2), HỎI: "Điền {KEY} lên daily meeting hôm nay không?". Đồng ý thì chạy skill `logdailymeeting` với đối số `{KEY}`; từ chối thì thôi, không hỏi lại cho task này trong ngày.
 
 Trong lúc làm task, khi hoàn thành một kết quả đáng kể thì thêm vào `Đã làm:`; khi bị chặn thì ghi `Vướng mắc:` và đặt trạng thái `blocked`.
 
