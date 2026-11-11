@@ -11,6 +11,7 @@ Các tool trong skill này được gọi theo tên ngắn (`jira_get_issue`, `j
 ## Quy tắc an toàn (đọc trước)
 
 - KHÔNG BAO GIỜ gọi `jira_add_worklog` khi người dùng chưa đồng ý rõ ràng trong lượt hội thoại hiện tại.
+- KHÔNG mở phiên logwork cho task nào khi người dùng chưa xác nhận đưa task đó vào logwork (xem bước 3 của "Bắt đầu task").
 - KHÔNG ước lượng giờ. Mọi mốc giờ lấy bằng lệnh `node -e` tại thời điểm xảy ra (xem "Lấy giờ").
 - Chỉ đề xuất worklog cho các phiên chưa log. Không log trùng.
 - Không tự đổi trạng thái issue Jira.
@@ -98,11 +99,11 @@ Phiên kéo qua nửa đêm: dùng file của ngày bắt đầu làm việc (v�
 
 1. Lấy key: từ tin nhắn, từ link `.../browse/KEY`, hoặc từ đối số `start KEY`.
 2. Gọi `jira_get_issue` với `issueKey: KEY` để lấy summary và trạng thái. Lỗi (không thấy issue) thì báo người dùng và dừng.
-   Nếu phần dự án của KEY (trước dấu `-`) khác `jiraProject` thì HỎI: "Task {KEY} thuộc dự án X, không phải dự án của repo ({jiraProject}). Vẫn ghi logwork ở repo này?". Người dùng từ chối thì dừng, không mở phiên.
-3. Đọc `./logwork/YYYY-MM-DD.md` của hôm nay (tạo nếu chưa có). Nếu đang có phiên mở (`HH:MM–…`) của task khác thì đóng phiên đó trước bằng giờ hiện tại, tính lại `(XhYm)`. Nếu task vừa đóng còn phiên chưa đánh dấu thì chạy ngay bước 2–5 của "Kết thúc task và đề xuất worklog" cho task đó (vẫn HỎI trước, không tự log).
-4. Thêm mục `## KEY — {summary}` mới, hoặc thêm phiên mới vào mục đã có trong ngày, với giờ bắt đầu là giờ hiện tại. Trạng thái `in-progress`. Khi thêm phiên vào mục đã có: giữ nguyên mọi dấu `[worklog …]`/`[bỏ qua]` và các dòng `Đã làm`, chỉ nối thêm ` · HH:MM–…` và đặt dòng `Jira worklog:` thành `chờ xác nhận` (mục mới cũng ghi `chờ xác nhận`).
-5. Thông báo ngắn đúng một dòng: `Logwork: bắt đầu {KEY} lúc {HH:MM}`.
-6. Nếu bước 4 vừa tạo mục MỚI cho task trong ngày (không phải thêm phiên vào mục đã có), HỎI: "Điền {KEY} lên daily meeting hôm nay không?". Đồng ý thì chạy skill `logdailymeeting` với đối số `{KEY}`; từ chối thì thôi, không hỏi lại cho task này trong ngày.
+3. HỎI xác nhận trước khi ghi logwork: "Đưa task {KEY} ({summary}) vào logwork không?". Nếu phần dự án của KEY (trước dấu `-`) khác `jiraProject` thì nói thêm trong cùng câu hỏi: "Task này thuộc dự án X, không phải dự án của repo ({jiraProject})." Người dùng từ chối thì dừng, không ghi gì vào `./logwork/`, vẫn làm task bình thường nếu được yêu cầu. Chỉ bỏ qua câu hỏi này khi người dùng gọi thẳng lệnh `/gem-jira:logwork start KEY` và KEY cùng dự án với repo.
+4. Sau khi người dùng xác nhận, lấy giờ hiện tại (giờ bắt đầu phiên là lúc xác nhận). Đọc `./logwork/YYYY-MM-DD.md` của hôm nay (tạo nếu chưa có). Nếu đang có phiên mở (`HH:MM–…`) của task khác thì đóng phiên đó trước bằng giờ hiện tại, tính lại `(XhYm)`. Nếu task vừa đóng còn phiên chưa đánh dấu thì chạy ngay bước 2–5 của "Kết thúc task và đề xuất worklog" cho task đó (vẫn HỎI trước, không tự log).
+5. Thêm mục `## KEY — {summary}` mới, hoặc thêm phiên mới vào mục đã có trong ngày, với giờ bắt đầu là giờ hiện tại. Trạng thái `in-progress`. Khi thêm phiên vào mục đã có: giữ nguyên mọi dấu `[worklog …]`/`[bỏ qua]` và các dòng `Đã làm`, chỉ nối thêm ` · HH:MM–…` và đặt dòng `Jira worklog:` thành `chờ xác nhận` (mục mới cũng ghi `chờ xác nhận`).
+6. Thông báo ngắn đúng một dòng: `Logwork: bắt đầu {KEY} lúc {HH:MM}`.
+7. Nếu bước 5 vừa tạo mục MỚI cho task trong ngày (không phải thêm phiên vào mục đã có), HỎI: "Điền {KEY} lên daily meeting hôm nay không?". Đồng ý thì chạy skill `logdailymeeting` với đối số `{KEY}`; từ chối thì thôi, không hỏi lại cho task này trong ngày.
 
 Trong lúc làm task, khi hoàn thành một kết quả đáng kể thì thêm vào `Đã làm:`; khi bị chặn thì ghi `Vướng mắc:` và đặt trạng thái `blocked`.
 
@@ -136,5 +137,5 @@ Không tốt:
 ## Tóm tắt luồng
 
 - setup (lần đầu): hỏi mã dự án Jira -> kiểm tra bằng `jira_list_projects` -> lưu `jiraProject` vào `config.json`.
-- start: `jira_get_issue` -> (khác dự án thì hỏi) -> ghi phiên mới vào `./logwork/` -> `Logwork: bắt đầu {KEY} lúc {HH:MM}` -> (task mới trong ngày) hỏi điền daily -> skill `logdailymeeting`.
+- start: `jira_get_issue` -> hỏi xác nhận đưa task vào logwork (kèm cảnh báo nếu khác dự án) -> (đồng ý) ghi phiên mới vào `./logwork/` -> `Logwork: bắt đầu {KEY} lúc {HH:MM}` -> (task mới trong ngày) hỏi điền daily -> skill `logdailymeeting`.
 - stop: đóng phiên -> đề xuất worklog -> hỏi -> (đồng ý) `jira_add_worklog`.

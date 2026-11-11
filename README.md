@@ -154,7 +154,7 @@ Cập nhật phiên bản mới: `git pull && npm ci && npm run build`, rồi kh
 
 ## Skill logwork
 
-Skill `logwork` (có trong plugin `gem-jira`) ghi lại thời gian làm task Jira trên máy bạn và đề xuất worklog. Daily meeting do skill riêng [`logdailymeeting`](#skill-logdailymeeting) đảm nhận. Skill tự kích hoạt khi bạn giao task để làm (vd *"làm task ABC-123"*, *"fix lỗi …/browse/ABC-123"*). Chỉ hỏi về một issue thì không bắt đầu ghi giờ. Hoặc gọi trực tiếp:
+Skill `logwork` (có trong plugin `gem-jira`) ghi lại thời gian làm task Jira trên máy bạn và đề xuất worklog. Daily meeting do skill riêng [`logdailymeeting`](#skill-logdailymeeting) đảm nhận. Skill tự kích hoạt khi bạn giao task để làm (vd *"làm task ABC-123"*, *"fix lỗi …/browse/ABC-123"*) và **hỏi bạn xác nhận** trước khi đưa task vào logwork. Chỉ hỏi về một issue thì không bắt đầu ghi giờ. Hoặc gọi trực tiếp:
 
 | Lệnh | Tác dụng |
 |---|---|
